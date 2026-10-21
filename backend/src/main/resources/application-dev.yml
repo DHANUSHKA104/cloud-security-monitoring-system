@@ -1,0 +1,10 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+logging:
+  level:
+    com.cloudsec.monitor: DEBUG
+    org.springframework.security: INFO
+    org.flywaydb: INFO

@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: cloudsec-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-cloudsec}
+      POSTGRES_USER: ${DB_USER:-cloudsec}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-cloudsec_dev_pass_2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-cloudsec} -d ${DB_NAME:-cloudsec}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloudsec-backend
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-cloudsec}
+      DB_USER: ${DB_USER:-cloudsec}
+      DB_PASSWORD: ${DB_PASSWORD:-cloudsec_dev_pass_2026}
+      JWT_SECRET: ${JWT_SECRET:-cloudsec-development-very-secure-jwt-secret-key-32chars}
+      JWT_ACCESS_MINUTES: ${JWT_ACCESS_MINUTES:-15}
+      JWT_REFRESH_DAYS: ${JWT_REFRESH_DAYS:-7}
+      SIM_API_KEY: ${SIM_API_KEY:-cloudsec-sim-key}
+      SIM_ADMIN_EMAIL: ${SIM_ADMIN_EMAIL:-admin@cloudsec.local}
+      SIM_ADMIN_PASSWORD: ${SIM_ADMIN_PASSWORD:-change-me}
+      DEV_SEED_PASSWORD: ${DEV_SEED_PASSWORD:-change-me}
+      ANALYTICS_URL: http://analytics:8000
+      ANALYTICS_API_KEY: ${ANALYTICS_API_KEY:-cloudsec-analytics-key}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+    ports:
+      - "8080:8080"
+
+  analytics:
+    build:
+      context: ./analytics
+      dockerfile: Dockerfile
+    container_name: cloudsec-analytics
+    restart: on-failure
+    depends_on:
+      - backend
+    environment:
+      ANALYTICS_DB_URL: postgresql://analytics_ro:${ANALYTICS_DB_PASSWORD:-analytics_ro_pass_2026}@postgres:5432/${DB_NAME:-cloudsec}
+      ANALYTICS_API_KEY: ${ANALYTICS_API_KEY:-cloudsec-analytics-key}
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:
