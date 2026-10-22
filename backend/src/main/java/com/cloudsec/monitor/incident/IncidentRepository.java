@@ -32,4 +32,16 @@ public interface IncidentRepository extends JpaRepository<Incident, UUID>, JpaSp
 
     @Query("SELECT i FROM Incident i WHERE i.status NOT IN ('RESOLVED', 'CLOSED') ORDER BY i.slaDueAt ASC")
     List<Incident> findOpenIncidentsOrderedByDue();
+
+    long countByStatusNotIn(java.util.Collection<IncidentStatus> statuses);
+
+    long countByPriorityAndStatusNotIn(IncidentPriority priority, java.util.Collection<IncidentStatus> statuses);
+
+    List<Incident> findByStatusNotIn(java.util.Collection<IncidentStatus> statuses);
+
+    List<Incident> findByStatusIn(java.util.Collection<IncidentStatus> statuses);
+
+    List<Incident> findByCreatedAtAfter(Instant after);
+
+    List<Incident> findByAssigneeIdAndStatusNotIn(UUID assigneeId, java.util.Collection<IncidentStatus> statuses);
 }

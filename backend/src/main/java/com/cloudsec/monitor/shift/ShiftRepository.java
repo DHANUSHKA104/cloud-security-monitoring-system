@@ -29,4 +29,7 @@ public interface ShiftRepository extends JpaRepository<Shift, UUID>, JpaSpecific
             @Param("startsAt") Instant startsAt,
             @Param("endsAt") Instant endsAt
     );
+
+    @Query("SELECT s FROM Shift s JOIN FETCH s.user u WHERE s.startsAt < :to AND s.endsAt > :from")
+    List<Shift> findShiftsBetween(@Param("from") Instant from, @Param("to") Instant to);
 }

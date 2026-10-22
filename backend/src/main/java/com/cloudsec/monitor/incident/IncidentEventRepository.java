@@ -12,4 +12,6 @@ public interface IncidentEventRepository extends JpaRepository<IncidentEvent, UU
     List<IncidentEvent> findByIncidentIdOrderByCreatedAtAsc(UUID incidentId);
 
     List<IncidentEvent> findTop30ByOrderByCreatedAtDesc();
+
+    boolean existsByIncidentIdAndType(UUID incidentId, String type);
 }

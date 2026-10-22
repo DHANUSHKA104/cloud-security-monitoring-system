@@ -61,6 +61,10 @@ public class User {
         this.updatedAt = Instant.now();
     }
 
+    public User(String email, String passwordHash, String fullName, Role role) {
+        this(email, passwordHash, fullName, "SOC Operations", role);
+    }
+
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = Instant.now();
