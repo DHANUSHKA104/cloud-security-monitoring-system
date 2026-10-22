@@ -6,6 +6,7 @@ import { ROUTES } from '@/constants/routes.constants';
 import { apiClient } from '@/services/api/apiClient';
 import { API_ENDPOINTS } from '@/constants/api.constants';
 import { useAuthStore } from '@/store/useAuthStore';
+import { OtpVerification } from '@/features/auth/components/OtpVerification';
 import { User } from '@/types';
 
 interface LoginResponse {
@@ -21,6 +22,9 @@ export const LoginForm: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showMfa, setShowMfa] = useState(false);
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+
   const navigate = useNavigate();
   const { setSession } = useAuthStore();
 
@@ -45,9 +49,9 @@ export const LoginForm: React.FC = () => {
       });
 
       if (res.mfaRequired && res.mfaToken) {
-        // MFA challenge step
+        setMfaToken(res.mfaToken);
         sessionStorage.setItem('mfaToken', res.mfaToken);
-        // Can toggle to OtpVerification
+        setShowMfa(true);
       } else if (res.user && res.accessToken) {
         setSession(res.user, res.accessToken, res.expiresIn);
         navigate(ROUTES.DASHBOARD);
@@ -63,6 +67,23 @@ export const LoginForm: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (showMfa) {
+    return (
+      <div className="space-y-4">
+        <OtpVerification mfaToken={mfaToken || undefined} />
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => setShowMfa(false)}
+            className="text-xs text-sky-400 hover:text-sky-300 transition-colors"
+          >
+            ← Back to Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form">
@@ -104,16 +125,22 @@ export const LoginForm: React.FC = () => {
         />
       </div>
 
+      <div className="flex items-center justify-between text-xs text-gray-400">
+        <span className="text-[11px] text-gray-500">Default dev account available</span>
+        <span className="text-[11px] text-sky-400 font-mono">admin@cloudsec.local</span>
+      </div>
+
       <Button type="submit" loading={loading} className="w-full">
         Sign In
       </Button>
 
-      <div className="text-center text-xs text-gray-400 pt-2">
+      <div className="text-center text-xs text-gray-400 pt-2 border-t border-gray-800">
         Don&apos;t have an account?{' '}
-        <Link to={ROUTES.SIGNUP} className="text-blue-400 hover:underline font-medium">
+        <Link to={ROUTES.SIGNUP} className="text-sky-400 hover:text-sky-300 font-medium">
           Create viewer account
         </Link>
       </div>
     </form>
   );
 };
+export default LoginForm;
