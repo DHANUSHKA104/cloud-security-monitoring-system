@@ -57,14 +57,17 @@ public class IncidentService {
     }
 
     @Transactional
+    public String generateIncidentCode() {
+        long nextSeq = incidentRepository.getNextIncidentCodeSeq();
+        int currentYear = Year.now().getValue();
+        return String.format("INC-%d-%04d", currentYear, nextSeq);
+    }
+
     public IncidentResponse createIncident(CreateIncidentRequest request, UUID creatorId) {
         User creator = (creatorId != null) ? userRepository.findById(creatorId).orElse(null) : null;
         Team team = (request.getTeamId() != null) ? teamRepository.findById(request.getTeamId()).orElse(null) : null;
 
-        // Generate unique formatted code: INC-<year>-<0000>
-        long nextSeq = incidentRepository.getNextIncidentCodeSeq();
-        int currentYear = Year.now().getValue();
-        String code = String.format("INC-%d-%04d", currentYear, nextSeq);
+        String code = generateIncidentCode();
 
         // Calculate SLA due timestamp
         SlaPolicy policy = slaPolicyService.getPolicyOrThrow(request.getPriority());

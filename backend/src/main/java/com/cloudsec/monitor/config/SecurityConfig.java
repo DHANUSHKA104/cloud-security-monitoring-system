@@ -107,6 +107,8 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/mfa/verify",
                                 "/api/auth/refresh",
+                                "/api/sim/**",
+                                "/api/demo/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
