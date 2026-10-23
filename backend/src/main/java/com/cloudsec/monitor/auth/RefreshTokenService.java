@@ -51,7 +51,7 @@ public class RefreshTokenService {
         return rawToken;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ApiException.class)
     public RefreshTokenResult rotateRefreshToken(String rawToken) {
         if (rawToken == null || rawToken.isBlank()) {
             throw new ApiException(ErrorCode.UNAUTHENTICATED, "Refresh token is missing");
@@ -134,3 +134,4 @@ public class RefreshTokenService {
 
     public record RefreshTokenResult(User user, String newRawToken) {}
 }
+

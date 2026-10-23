@@ -107,6 +107,7 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/mfa/verify",
                                 "/api/auth/refresh",
+                                "/api/auth/logout",
                                 "/api/sim/**",
                                 "/api/demo/**",
                                 "/v3/api-docs/**",
@@ -122,3 +123,5 @@ public class SecurityConfig {
         return http.build();
     }
 }
+
+
