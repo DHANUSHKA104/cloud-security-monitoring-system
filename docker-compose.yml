@@ -37,8 +37,8 @@ services:
       JWT_REFRESH_DAYS: ${JWT_REFRESH_DAYS:-7}
       SIM_API_KEY: ${SIM_API_KEY:-cloudsec-sim-key}
       SIM_ADMIN_EMAIL: ${SIM_ADMIN_EMAIL:-admin@cloudsec.local}
-      SIM_ADMIN_PASSWORD: ${SIM_ADMIN_PASSWORD:-change-me}
-      DEV_SEED_PASSWORD: ${DEV_SEED_PASSWORD:-change-me}
+      SIM_ADMIN_PASSWORD: ${SIM_ADMIN_PASSWORD}
+      DEV_SEED_PASSWORD: ${DEV_SEED_PASSWORD}
       ANALYTICS_URL: http://analytics:8000
       ANALYTICS_API_KEY: ${ANALYTICS_API_KEY:-cloudsec-analytics-key}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
