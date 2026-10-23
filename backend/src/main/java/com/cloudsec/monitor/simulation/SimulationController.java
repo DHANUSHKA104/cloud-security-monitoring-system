@@ -14,8 +14,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.context.annotation.Profile;
+
 @RestController
 @RequestMapping("/api")
+@Profile("!prod")
 public class SimulationController {
 
     private final SimulationService simulationService;
@@ -67,3 +70,4 @@ public class SimulationController {
         return ResponseEntity.ok(Map.of("message", "Demo state reset successfully"));
     }
 }
+
