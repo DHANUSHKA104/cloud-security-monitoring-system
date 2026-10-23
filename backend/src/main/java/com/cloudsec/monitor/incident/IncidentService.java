@@ -6,6 +6,7 @@ import com.cloudsec.monitor.common.exception.ErrorCode;
 import com.cloudsec.monitor.incident.dto.*;
 import com.cloudsec.monitor.team.Team;
 import com.cloudsec.monitor.team.TeamMember;
+import com.cloudsec.monitor.team.TeamRole;
 import com.cloudsec.monitor.team.TeamMemberRepository;
 import com.cloudsec.monitor.team.TeamRepository;
 import com.cloudsec.monitor.user.Role;
@@ -235,6 +236,15 @@ public class IncidentService {
         Incident incident = incidentRepository.findById(id)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Incident not found"));
 
+        if (actor != null && actor.getRole() == Role.ANALYST) {
+            boolean isLead = incident.getTeam() != null && teamMemberRepository.findByTeamIdAndUserId(incident.getTeam().getId(), actor.getId())
+                    .map(tm -> tm.getTeamRole() == TeamRole.LEAD)
+                    .orElse(false);
+            if (!isLead) {
+                throw new ApiException(ErrorCode.FORBIDDEN, "Only a Team Lead or Admin can reassign incidents");
+            }
+        }
+
         User assignee = userRepository.findById(request.getAssigneeId())
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Assignee user not found"));
 
@@ -328,16 +338,20 @@ public class IncidentService {
     }
 
     private void validateStatusTransition(IncidentStatus from, IncidentStatus to) {
+        if (from == IncidentStatus.CLOSED) {
+            throw new ApiException(ErrorCode.CONFLICT, "A closed incident cannot change status; use the reopen endpoint to reopen.");
+        }
+
         boolean valid = switch (from) {
-            case OPEN -> to == IncidentStatus.TRIAGED || to == IncidentStatus.IN_PROGRESS || to == IncidentStatus.RESOLVED;
-            case TRIAGED -> to == IncidentStatus.IN_PROGRESS || to == IncidentStatus.RESOLVED;
-            case IN_PROGRESS -> to == IncidentStatus.RESOLVED || to == IncidentStatus.CLOSED;
+            case OPEN -> to == IncidentStatus.TRIAGED || to == IncidentStatus.IN_PROGRESS;
+            case TRIAGED -> to == IncidentStatus.IN_PROGRESS || to == IncidentStatus.OPEN;
+            case IN_PROGRESS -> to == IncidentStatus.RESOLVED || to == IncidentStatus.TRIAGED;
             case RESOLVED -> to == IncidentStatus.CLOSED || to == IncidentStatus.IN_PROGRESS;
-            case CLOSED -> to == IncidentStatus.IN_PROGRESS;
+            case CLOSED -> false;
         };
 
         if (!valid) {
-            throw new ApiException(ErrorCode.VALIDATION_ERROR,
+            throw new ApiException(ErrorCode.CONFLICT,
                     String.format("Invalid status transition from %s to %s", from, to));
         }
     }

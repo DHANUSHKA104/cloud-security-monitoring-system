@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 public class ReopenRequest {
 
     @NotBlank(message = "Reason is required to reopen an incident")
-    @Size(max = 500, message = "Reason cannot exceed 500 characters")
+    @Size(min = 5, max = 500, message = "Reason must be between 5 and 500 characters")
     private String reason;
 
     public ReopenRequest() {}
@@ -23,3 +23,4 @@ public class ReopenRequest {
         this.reason = reason;
     }
 }
+

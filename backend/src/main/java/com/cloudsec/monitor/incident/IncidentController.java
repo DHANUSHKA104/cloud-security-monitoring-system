@@ -77,7 +77,7 @@ public class IncidentController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
     public ResponseEntity<IncidentResponse> updateStatus(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateStatusRequest request,
@@ -138,3 +138,5 @@ public class IncidentController {
         return ResponseEntity.ok(incidentService.getTimeline(id));
     }
 }
+
+
