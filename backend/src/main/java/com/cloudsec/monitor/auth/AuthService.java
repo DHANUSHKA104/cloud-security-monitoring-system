@@ -72,7 +72,7 @@ public class AuthService {
         return UserResponse.from(saved);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ApiException.class)
     public LoginResult login(LoginRequest request) {
         Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
 
@@ -106,12 +106,12 @@ public class AuthService {
 
             if (newFailedCount >= MAX_FAILED_ATTEMPTS) {
                 user.setLockedUntil(Instant.now().plus(LOCKOUT_MINUTES, ChronoUnit.MINUTES));
-                userRepository.save(user);
+                userRepository.saveAndFlush(user);
                 throw new ApiException(ErrorCode.ACCOUNT_LOCKED,
                         "Account locked, try again in " + LOCKOUT_MINUTES + " minutes.");
             }
 
-            userRepository.save(user);
+            userRepository.saveAndFlush(user);
             throw new ApiException(ErrorCode.UNAUTHENTICATED, "Invalid email or password");
         }
 
@@ -222,3 +222,5 @@ public class AuthService {
     public record LoginResult(LoginResponse response, String refreshToken) {}
     private record MfaPendingSession(UUID userId, Instant expiresAt) {}
 }
+
+
