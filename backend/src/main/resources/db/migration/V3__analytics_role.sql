@@ -14,4 +14,4 @@ GRANT SELECT ON incidents TO analytics_ro;
 GRANT SELECT ON incident_events TO analytics_ro;
 GRANT SELECT ON shifts TO analytics_ro;
 GRANT SELECT ON team_members TO analytics_ro;
-GRANT SELECT ON users TO analytics_ro;
+GRANT SELECT (id, full_name, role, active) ON users TO analytics_ro;

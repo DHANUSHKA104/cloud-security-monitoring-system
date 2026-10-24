@@ -162,7 +162,7 @@ public class AuthService {
         return new LoginResult(response, refreshToken);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ApiException.class)
     public LoginResult refreshToken(String cookieRefreshToken) {
         RefreshTokenService.RefreshTokenResult result = refreshTokenService.rotateRefreshToken(cookieRefreshToken);
         User user = result.user();
@@ -222,5 +222,6 @@ public class AuthService {
     public record LoginResult(LoginResponse response, String refreshToken) {}
     private record MfaPendingSession(UUID userId, Instant expiresAt) {}
 }
+
 
 

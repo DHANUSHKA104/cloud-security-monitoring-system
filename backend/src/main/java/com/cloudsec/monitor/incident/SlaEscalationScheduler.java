@@ -120,7 +120,7 @@ public class SlaEscalationScheduler {
                     "{\"level\": 2, \"trigger\": \"AUTO_SLA_75_PERCENT\", \"reason\": \"Critical SLA threshold reached (" + Math.round(pctElapsed) + "% elapsed)\"}"
             ));
             log.info("Incident {} auto-escalated to Level 2 (Admin)", incident.getCode());
-        } else if (pctElapsed >= policy.getFirstEscalationPct() && incident.getEscalationLevel() < 1) {
+        } else if (pctElapsed >= policy.getFirstEscalationPct() && incident.getEscalationLevel() < 1 && incident.getAcknowledgedAt() == null) {
             incident.setEscalationLevel(1);
             if (incident.getTeam() != null) {
                 List<TeamMember> leads = teamMemberRepository.findTeamLeads(incident.getTeam().getId());
@@ -144,3 +144,4 @@ public class SlaEscalationScheduler {
         }
     }
 }
+
