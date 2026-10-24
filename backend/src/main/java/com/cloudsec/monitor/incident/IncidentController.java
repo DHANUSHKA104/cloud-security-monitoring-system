@@ -1,5 +1,8 @@
 package com.cloudsec.monitor.incident;
 
+import com.cloudsec.monitor.common.exception.ApiException;
+import com.cloudsec.monitor.common.exception.ErrorCode;
+
 import com.cloudsec.monitor.common.dto.PageResponse;
 import com.cloudsec.monitor.incident.dto.*;
 import com.cloudsec.monitor.security.UserPrincipal;
@@ -51,7 +54,11 @@ public class IncidentController {
                 ? Sort.Direction.ASC
                 : Sort.Direction.DESC;
 
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(direction, sortProp));
+        if (page < 0) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Page index must not be less than zero");
+        }
+        int safeSize = Math.min(100, Math.max(1, size));
+        PageRequest pageRequest = PageRequest.of(page, safeSize, Sort.by(direction, sortProp));
         UUID currentUserId = currentUser != null ? currentUser.getId() : null;
 
         return ResponseEntity.ok(incidentService.getIncidents(
@@ -138,5 +145,6 @@ public class IncidentController {
         return ResponseEntity.ok(incidentService.getTimeline(id));
     }
 }
+
 
 

@@ -71,13 +71,13 @@ public class DashboardService {
         double score = 0.0;
         for (Incident inc : openList) {
             score += switch (inc.getPriority()) {
-                case P1 -> 40.0;
-                case P2 -> 20.0;
-                case P3 -> 8.0;
-                case P4 -> 2.0;
+                case P1 -> 8.0;
+                case P2 -> 4.0;
+                case P3 -> 2.0;
+                case P4 -> 1.0;
             };
         }
-        double threatScore = Math.min(100.0, score);
+        double threatScore = score;
 
         String threatLevel;
         if (threatScore >= 50.0) {
@@ -213,7 +213,7 @@ public class DashboardService {
             long p3 = userIncidents.stream().filter(i -> i.getPriority() == IncidentPriority.P3).count();
             long p4 = userIncidents.stream().filter(i -> i.getPriority() == IncidentPriority.P4).count();
 
-            double weightedLoad = (p1 * 4.0) + (p2 * 2.0) + (p3 * 1.0) + (p4 * 0.5);
+            double weightedLoad = (p1 * 3.0) + (p2 * 2.0) + (p3 * 1.0) + (p4 * 0.5);
 
             workloadList.add(new AnalystWorkloadResponse(
                     user.getId(),

@@ -1,6 +1,9 @@
 package com.cloudsec.monitor.user;
 
 import com.cloudsec.monitor.auth.dto.UserResponse;
+import com.cloudsec.monitor.common.exception.ApiException;
+import com.cloudsec.monitor.common.exception.ErrorCode;
+
 import com.cloudsec.monitor.common.dto.PageResponse;
 import com.cloudsec.monitor.user.dto.CreateUserRequest;
 import com.cloudsec.monitor.user.dto.UpdateUserRequest;
@@ -43,7 +46,11 @@ public class UserController {
                 ? Sort.Direction.ASC
                 : Sort.Direction.DESC;
 
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(direction, sortProp));
+        if (page < 0) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Page index must not be less than zero");
+        }
+        int safeSize = Math.min(100, Math.max(1, size));
+        PageRequest pageRequest = PageRequest.of(page, safeSize, Sort.by(direction, sortProp));
         return ResponseEntity.ok(userService.getUsers(q, role, active, pageRequest));
     }
 
@@ -79,3 +86,4 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 }
+
