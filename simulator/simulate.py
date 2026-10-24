@@ -138,6 +138,7 @@ def run_simulation(
     duration: int,
     api_url: str,
     sim_key: str,
+    dry_run: bool = False,
 ):
     random.seed(seed)
     templates = SCENARIOS.get(scenario_name)
@@ -148,7 +149,10 @@ def run_simulation(
     print("=" * 70)
     print("  CLOUD SECURITY MONITORING SYSTEM - ATTACK SIMULATOR")
     print(f"  Scenario: {scenario_name} | Rate: {rate} | Duration: {duration}s")
-    print(f"  Target API: {api_url}")
+    if not dry_run:
+        print(f"  Target API: {api_url}")
+    else:
+        print("  Mode: DRY-RUN (deterministic preview)")
     print("=" * 70)
 
     start_time = time.time()
@@ -160,6 +164,14 @@ def run_simulation(
             # Slightly randomize risk score for realism
             base_risk = template.get("riskScore", 70)
             template["riskScore"] = min(100, max(10, base_risk + random.randint(-4, 4)))
+
+            if dry_run:
+                total_dispatched += 1
+                print(
+                    f"  [DRY-RUN #{total_dispatched}] {template.get('title')} | Priority: {template.get('priority')} | "
+                    f"Category: {template.get('category')} | Risk: {template['riskScore']} | Asset: {template.get('assetId')}"
+                )
+                continue
 
             try:
                 res = dispatch_incident(api_url, sim_key, template)
@@ -181,14 +193,21 @@ def run_simulation(
             except Exception as e:
                 print(f"  [ERROR] Failed to dispatch incident: {e}")
 
+        if dry_run or duration <= 0:
+            break
+
         elapsed = time.time() - start_time
-        if duration <= 0 or elapsed >= duration:
+        if elapsed >= duration:
             break
 
         time.sleep(1.0)
 
     print("=" * 70)
-    print(f"  SIMULATION COMPLETE: {total_dispatched} incidents ingested in {elapsed:.1f}s")
+    if dry_run:
+        print(f"  SIMULATION COMPLETE: {total_dispatched} incidents generated (dry-run)")
+    else:
+        elapsed = time.time() - start_time
+        print(f"  SIMULATION COMPLETE: {total_dispatched} incidents ingested in {elapsed:.1f}s")
     print("=" * 70)
 
 
@@ -205,6 +224,7 @@ def main():
     parser.add_argument("--duration", type=int, default=0, help="Duration in seconds (0 = single burst)")
     parser.add_argument("--api", default="http://localhost:8080/api", help="Backend API base URL")
     parser.add_argument("--sim-key", default=None, help="Simulator authentication key")
+    parser.add_argument("--dry-run", action="store_true", help="Print simulated incidents without sending HTTP requests")
 
     args = parser.parse_args()
     sim_key = args.sim_key or load_sim_key_from_env()
@@ -216,6 +236,7 @@ def main():
         duration=args.duration,
         api_url=args.api,
         sim_key=sim_key,
+        dry_run=args.dry_run,
     )
 
 

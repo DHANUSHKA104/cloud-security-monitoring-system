@@ -76,3 +76,15 @@ def test_health_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "UP"
+
+
+def test_insights_missing_key_returns_401():
+    client = TestClient(app)
+    response = client.get("/api/insights")
+    assert response.status_code == 401
+
+
+def test_insights_wrong_key_returns_403():
+    client = TestClient(app)
+    response = client.get("/api/insights", headers={"X-Analytics-Key": "wrong-key"})
+    assert response.status_code == 403

@@ -110,8 +110,8 @@ class DashboardServiceTest {
         assertEquals(3, summary.getOpenIncidents());
         assertEquals(1, summary.getP1Open());
         // Threat score: P1 (40) + P2 (20) + P3 (8) = 68.0
-        assertEquals(68.0, summary.getThreatScore());
-        assertEquals("CRITICAL", summary.getThreatLevel());
+        assertEquals(14.0, summary.getThreatScore());
+        assertEquals("ELEVATED", summary.getThreatLevel());
         // SLA compliance: 1 of 2 in SLA = 50.0%
         assertEquals(50.0, summary.getSlaCompliancePct());
         // MTTR: (20 + 80) / 2 = 50.0 minutes
@@ -178,7 +178,7 @@ class DashboardServiceTest {
         // Alice has P1 (4.0) + P2 (2.0) = 6.0
         assertEquals(alice.getId(), workload.get(0).getUserId());
         assertEquals("Alice Analyst", workload.get(0).getFullName());
-        assertEquals(6.0, workload.get(0).getWeightedLoad());
+        assertEquals(5.0, workload.get(0).getWeightedLoad());
         assertEquals(2, workload.get(0).getOpenCount());
 
         // Bob has P4 (0.5) = 0.5

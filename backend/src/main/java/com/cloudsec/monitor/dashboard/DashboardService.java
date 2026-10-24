@@ -19,9 +19,11 @@ import com.cloudsec.monitor.user.User;
 import com.cloudsec.monitor.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import java.time.DayOfWeek;
@@ -52,13 +54,33 @@ public class DashboardService {
             IncidentEventRepository incidentEventRepository,
             UserRepository userRepository,
             ShiftRepository shiftRepository,
-            @Value("${cloudsec.analytics.url:http://localhost:8000}") String analyticsUrl
+            String analyticsUrl
+    ) {
+        this(incidentRepository, incidentEventRepository, userRepository, shiftRepository, analyticsUrl, "cloudsec-analytics-key");
+    }
+
+    @Autowired
+    public DashboardService(
+            IncidentRepository incidentRepository,
+            IncidentEventRepository incidentEventRepository,
+            UserRepository userRepository,
+            ShiftRepository shiftRepository,
+            @Value("${cloudsec.analytics.url:http://localhost:8000}") String analyticsUrl,
+            @Value("${cloudsec.analytics.api-key:cloudsec-analytics-key}") String analyticsApiKey
     ) {
         this.incidentRepository = incidentRepository;
         this.incidentEventRepository = incidentEventRepository;
         this.userRepository = userRepository;
         this.shiftRepository = shiftRepository;
-        this.restClient = RestClient.builder().baseUrl(analyticsUrl).build();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(2));
+        requestFactory.setReadTimeout(Duration.ofSeconds(2));
+
+        this.restClient = RestClient.builder()
+                .baseUrl(analyticsUrl)
+                .requestFactory(requestFactory)
+                .defaultHeader("X-Analytics-Key", analyticsApiKey)
+                .build();
     }
 
     public DashboardSummaryResponse getSummary() {

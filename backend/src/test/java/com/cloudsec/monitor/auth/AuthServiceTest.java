@@ -82,7 +82,7 @@ class AuthServiceTest {
         assertEquals(ErrorCode.UNAUTHENTICATED, ex.getErrorCode());
         assertEquals(3, sampleUser.getFailedLoginCount());
         assertNull(sampleUser.getLockedUntil());
-        verify(userRepository).save(sampleUser);
+        verify(userRepository).saveAndFlush(sampleUser);
     }
 
     @Test
@@ -98,7 +98,7 @@ class AuthServiceTest {
         assertEquals(5, sampleUser.getFailedLoginCount());
         assertNotNull(sampleUser.getLockedUntil());
         assertTrue(sampleUser.getLockedUntil().isAfter(Instant.now()));
-        verify(userRepository).save(sampleUser);
+        verify(userRepository).saveAndFlush(sampleUser);
     }
 
     @Test

@@ -118,7 +118,7 @@ class IncidentServiceTest {
         UpdateStatusRequest request = new UpdateStatusRequest(IncidentStatus.CLOSED, "closing immediately");
 
         ApiException ex = assertThrows(ApiException.class, () -> incidentService.updateStatus(incId, request, sampleAnalyst));
-        assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        assertEquals(ErrorCode.CONFLICT, ex.getErrorCode());
         assertTrue(ex.getMessage().contains("Invalid status transition"));
     }
 

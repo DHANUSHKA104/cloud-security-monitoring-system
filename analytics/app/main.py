@@ -1,5 +1,6 @@
 import logging
-from fastapi import FastAPI
+import os
+from fastapi import FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from .database import get_db_connection
 from .models import InsightsResponse, HealthResponse
@@ -27,6 +28,21 @@ app.add_middleware(
 )
 
 
+def verify_analytics_key(x_analytics_key: str = Header(None, alias="X-Analytics-Key")):
+    expected_key = os.environ.get("ANALYTICS_API_KEY", "cloudsec-analytics-key")
+    if not x_analytics_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing X-Analytics-Key header",
+        )
+    if x_analytics_key != expected_key:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid X-Analytics-Key header",
+        )
+    return x_analytics_key
+
+
 @app.get("/health", response_model=HealthResponse)
 def health():
     db_status = "connected"
@@ -42,7 +58,8 @@ def health():
 
 
 @app.get("/api/insights", response_model=InsightsResponse)
-def get_insights():
+def get_insights(x_analytics_key: str = Header(None, alias="X-Analytics-Key")):
+    verify_analytics_key(x_analytics_key)
     try:
         with get_db_connection() as conn:
             anomalies = calculate_volume_anomalies(conn)
