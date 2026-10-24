@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { IncidentBoard, IncidentForm, IncidentItem } from '@/features/incidents';
 import { Button } from '@/components/ui/Button';
 import { apiClient } from '@/services/api/apiClient';
+import { useAuthStore } from '@/store/useAuthStore';
 
 interface PageResponse<T> {
   content: T[];
@@ -9,15 +11,42 @@ interface PageResponse<T> {
 }
 
 export const Incidents: React.FC = () => {
+  const { user } = useAuthStore();
+  const isViewer = user?.role === 'VIEWER';
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [incidents, setIncidents] = useState<IncidentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
-  const [search, setSearch] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const [slaStateFilter, setSlaStateFilter] = useState('');
+  // Filters initialized from URL query params
+  const [search, setSearch] = useState(searchParams.get('q') || '');
+  const [priorityFilter, setPriorityFilter] = useState(searchParams.get('priority') || '');
+  const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || '');
+  const [slaStateFilter, setSlaStateFilter] = useState(searchParams.get('slaState') || '');
   const [formOpen, setFormOpen] = useState(false);
+
+  // Synchronize state with URL search params
+  const updateFilter = (key: string, val: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (val.trim()) {
+      next.set(key, val.trim());
+    } else {
+      next.delete(key);
+    }
+    setSearchParams(next, { replace: true });
+  };
+
+  const handleResetFilters = () => {
+    setSearch('');
+    setPriorityFilter('');
+    setCategoryFilter('');
+    setSlaStateFilter('');
+    setSearchParams({}, { replace: true });
+  };
+
+  const hasActiveFilters = Boolean(search || priorityFilter || categoryFilter || slaStateFilter);
 
   const fetchIncidents = useCallback(async () => {
     try {
@@ -28,6 +57,7 @@ export const Incidents: React.FC = () => {
       params.append('size', '100');
       if (search.trim()) params.append('q', search.trim());
       if (priorityFilter) params.append('priority', priorityFilter);
+      if (categoryFilter) params.append('category', categoryFilter);
       if (slaStateFilter) params.append('slaState', slaStateFilter);
 
       const res = await apiClient.get<PageResponse<IncidentItem>>(`/api/incidents?${params.toString()}`);
@@ -38,10 +68,12 @@ export const Incidents: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, priorityFilter, slaStateFilter]);
+  }, [search, priorityFilter, categoryFilter, slaStateFilter]);
 
   useEffect(() => {
     fetchIncidents();
+    const interval = setInterval(fetchIncidents, 4000);
+    return () => clearInterval(interval);
   }, [fetchIncidents]);
 
   return (
@@ -55,9 +87,11 @@ export const Incidents: React.FC = () => {
           </p>
         </div>
 
-        <Button onClick={() => setFormOpen(true)} size="sm">
-          + Raise Incident
-        </Button>
+        {!isViewer && (
+          <Button onClick={() => setFormOpen(true)} size="sm">
+            + Raise Incident
+          </Button>
+        )}
       </div>
 
       {/* Filters Bar */}
@@ -67,13 +101,19 @@ export const Incidents: React.FC = () => {
             type="text"
             placeholder="Search code, title or evidence..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64 bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              updateFilter('q', e.target.value);
+            }}
+            className="w-full sm:w-56 bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
           />
 
           <select
             value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
+            onChange={(e) => {
+              setPriorityFilter(e.target.value);
+              updateFilter('priority', e.target.value);
+            }}
             className="bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="">All Priorities</option>
@@ -84,8 +124,27 @@ export const Incidents: React.FC = () => {
           </select>
 
           <select
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              updateFilter('category', e.target.value);
+            }}
+            className="bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+          >
+            <option value="">All Categories</option>
+            <option value="AUTH_ATTACK">AUTH_ATTACK</option>
+            <option value="DATA_EXFIL">DATA_EXFIL</option>
+            <option value="RANSOMWARE">RANSOMWARE</option>
+            <option value="NETWORK_INTRUSION">NETWORK_INTRUSION</option>
+            <option value="POLICY_VIOLATION">POLICY_VIOLATION</option>
+          </select>
+
+          <select
             value={slaStateFilter}
-            onChange={(e) => setSlaStateFilter(e.target.value)}
+            onChange={(e) => {
+              setSlaStateFilter(e.target.value);
+              updateFilter('slaState', e.target.value);
+            }}
             className="bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="">All SLA Statuses</option>
@@ -93,6 +152,16 @@ export const Incidents: React.FC = () => {
             <option value="AT_RISK">At Risk (&lt;30m)</option>
             <option value="BREACHED">Breached</option>
           </select>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="text-xs text-blue-400 hover:text-blue-300 underline ml-1"
+            >
+              Reset filters
+            </button>
+          )}
         </div>
 
         <div className="text-gray-400 text-xs">
@@ -106,19 +175,38 @@ export const Incidents: React.FC = () => {
         </div>
       )}
 
-      {/* Kanban Board */}
-      <IncidentBoard
-        incidents={incidents}
-        loading={loading}
-        onRefresh={fetchIncidents}
-      />
+      {/* Empty state with reset filters button if 0 results */}
+      {incidents.length === 0 && !loading ? (
+        <div className="p-12 text-center rounded-lg border border-dashed border-gray-800 bg-gray-900/40 space-y-3">
+          <div className="text-gray-400 text-sm font-semibold">No incidents found matching current criteria</div>
+          <p className="text-xs text-gray-500 max-w-sm mx-auto">
+            {hasActiveFilters
+              ? 'Try widening your filter parameters or resetting all applied filters.'
+              : 'There are currently no security incidents recorded in the system.'}
+          </p>
+          {hasActiveFilters && (
+            <Button size="sm" variant="secondary" onClick={handleResetFilters}>
+              Clear All Filters
+            </Button>
+          )}
+        </div>
+      ) : (
+        /* Kanban Board */
+        <IncidentBoard
+          incidents={incidents}
+          loading={loading}
+          onRefresh={fetchIncidents}
+        />
+      )}
 
       {/* Raise Incident Modal */}
-      <IncidentForm
-        isOpen={formOpen}
-        onClose={() => setFormOpen(false)}
-        onCreated={fetchIncidents}
-      />
+      {!isViewer && (
+        <IncidentForm
+          isOpen={formOpen}
+          onClose={() => setFormOpen(false)}
+          onCreated={fetchIncidents}
+        />
+      )}
     </div>
   );
 };

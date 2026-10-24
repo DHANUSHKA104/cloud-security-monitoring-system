@@ -265,6 +265,101 @@ export const ShiftCalendar: React.FC = () => {
         </div>
       )}
 
+      {/* 24-Hour Visual Shift Timeline Bar */}
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
+              24-Hour Coverage Timeline (Today)
+            </h3>
+            <span className="text-[10px] text-gray-500 font-mono">00:00 - 24:00 Local</span>
+          </div>
+          <div className="flex items-center gap-3 text-[11px] text-gray-400">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded bg-emerald-500 inline-block animate-pulse"></span>
+              On-Duty (Active)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded bg-gray-700 inline-block"></span>
+              Off-Shift / Scheduled
+            </span>
+          </div>
+        </div>
+
+        {/* 24-Hour Ruler & Blocks */}
+        <div className="relative pt-6 pb-2">
+          {/* Hour markers */}
+          <div className="absolute top-0 left-0 right-0 flex justify-between text-[10px] text-gray-500 font-mono">
+            <span>00:00</span>
+            <span>04:00</span>
+            <span>08:00</span>
+            <span>12:00</span>
+            <span>16:00</span>
+            <span>20:00</span>
+            <span>24:00</span>
+          </div>
+
+          {/* Track */}
+          <div className="h-10 bg-gray-950 border border-gray-800 rounded-md relative overflow-hidden flex items-center">
+            {/* Hour grid lines */}
+            <div className="absolute inset-0 flex justify-between pointer-events-none opacity-20">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="h-full border-r border-gray-500"></div>
+              ))}
+            </div>
+
+            {/* Shift blocks */}
+            {shifts.map((shift) => {
+              const start = new Date(shift.startsAt);
+              const end = new Date(shift.endsAt);
+              const now = new Date();
+              const isCurrent = start <= now && end > now;
+
+              const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+              const startMin = Math.max(0, (start.getTime() - startOfDay) / (1000 * 60));
+              const endMin = Math.min(1440, (end.getTime() - startOfDay) / (1000 * 60));
+              const leftPct = Math.max(0, Math.min(100, (startMin / 1440) * 100));
+              const widthPct = Math.max(4, Math.min(100 - leftPct, ((endMin - startMin) / 1440) * 100));
+
+              return (
+                <div
+                  key={shift.id}
+                  style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                  className={`absolute h-7 rounded px-2 flex items-center justify-between text-[10px] font-medium transition-all shadow-sm ${
+                    isCurrent
+                      ? 'bg-emerald-600/90 border border-emerald-400 text-white font-bold ring-1 ring-emerald-400/50'
+                      : 'bg-gray-800/80 border border-gray-700 text-gray-400 opacity-60'
+                  }`}
+                  title={`${shift.userName} (${shift.userEmail}): ${formatDateTime(shift.startsAt)} - ${formatDateTime(shift.endsAt)}`}
+                >
+                  <span className="truncate">{shift.userName}</span>
+                  {isCurrent && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping ml-1"></span>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Current Time Indicator */}
+            {(() => {
+              const now = new Date();
+              const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+              const nowMin = (now.getTime() - startOfDay) / (1000 * 60);
+              const nowPct = Math.max(0, Math.min(100, (nowMin / 1440) * 100));
+              return (
+                <div
+                  style={{ left: `${nowPct}%` }}
+                  className="absolute top-0 bottom-0 w-0.5 bg-rose-500 z-10 shadow-sm shadow-rose-500/50"
+                  title={`Current time: ${now.toLocaleTimeString()}`}
+                >
+                  <div className="w-2 h-2 rounded-full bg-rose-500 -ml-[3px] -mt-0.5"></div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      </div>
+
       {/* Schedule Table */}
       <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
         <div className="p-3 border-b border-gray-800 bg-gray-950/40 flex items-center justify-between">

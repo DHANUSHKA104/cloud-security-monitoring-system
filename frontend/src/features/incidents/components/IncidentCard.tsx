@@ -37,7 +37,12 @@ export const IncidentCard: React.FC<IncidentCardProps> = ({
   return (
     <div
       onClick={onClick}
-      className="p-3 bg-gray-900 border border-gray-800 rounded-lg hover:border-gray-700 hover:bg-gray-850 cursor-pointer transition-all space-y-2.5 shadow-sm group"
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('application/json', JSON.stringify({ id: incident.id, status: incident.status }));
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      className="p-3 bg-gray-900 border border-gray-800 rounded-lg hover:border-gray-700 hover:bg-gray-850 cursor-grab active:cursor-grabbing transition-all space-y-2.5 shadow-sm group"
     >
       {/* Top row: Code, Priority, Escalation */}
       <div className="flex items-center justify-between">
