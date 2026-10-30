@@ -60,12 +60,15 @@ class IncidentServiceTest {
     private IncidentService incidentService;
 
     private User sampleAnalyst;
+    private User sampleAdmin;
     private SlaPolicy p1Policy;
 
     @BeforeEach
     void setUp() {
         sampleAnalyst = new User("alice@cloudsec.local", "hash", "Alice Analyst", "SOC", Role.ANALYST);
         sampleAnalyst.setId(UUID.randomUUID());
+        sampleAdmin = new User("admin@cloudsec.local", "hash", "Admin", "SOC", Role.ADMIN);
+        sampleAdmin.setId(UUID.randomUUID());
 
         p1Policy = new SlaPolicy(IncidentPriority.P1, 30, 50, 75);
     }
@@ -80,7 +83,7 @@ class IncidentServiceTest {
 
         when(incidentRepository.getNextIncidentCodeSeq()).thenReturn(42L);
         when(slaPolicyService.getPolicyOrThrow(IncidentPriority.P1)).thenReturn(p1Policy);
-        when(smartRoutingService.routeIncident(eq("AUTH_ATTACK"), any())).thenReturn(
+        when(smartRoutingService.routeIncident(eq("AUTH_ATTACK"), any(), any(), any())).thenReturn(
                 new SmartRoutingService.RoutingResult(sampleAnalyst, "{\"winner\":\"" + sampleAnalyst.getId() + "\"}", false)
         );
 
@@ -111,6 +114,7 @@ class IncidentServiceTest {
         Incident incident = new Incident("INC-2026-0001", "Title", "Desc", IncidentPriority.P1,
                 IncidentStatus.OPEN, "AUTH", null, null, Instant.now().plus(30, ChronoUnit.MINUTES), null, null);
         incident.setId(incId);
+        incident.setAssignee(sampleAnalyst);
 
         when(incidentRepository.findById(incId)).thenReturn(Optional.of(incident));
 
@@ -128,6 +132,7 @@ class IncidentServiceTest {
         Incident incident = new Incident("INC-2026-0001", "Title", "Desc", IncidentPriority.P2,
                 IncidentStatus.IN_PROGRESS, "AUTH", null, null, Instant.now().plus(120, ChronoUnit.MINUTES), null, null);
         incident.setId(incId);
+        incident.setAssignee(sampleAnalyst);
 
         when(incidentRepository.findById(incId)).thenReturn(Optional.of(incident));
         when(incidentRepository.save(any(Incident.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -152,7 +157,7 @@ class IncidentServiceTest {
         when(incidentRepository.save(any(Incident.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ReopenRequest request = new ReopenRequest("New alerts detected after remediation");
-        IncidentResponse response = incidentService.reopenIncident(incId, request, sampleAnalyst);
+        IncidentResponse response = incidentService.reopenIncident(incId, request, sampleAdmin);
 
         assertEquals(IncidentStatus.IN_PROGRESS, response.getStatus());
         assertNull(response.getResolvedAt());

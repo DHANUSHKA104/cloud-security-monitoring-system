@@ -64,6 +64,13 @@ public class SlaEscalationScheduler {
     }
 
     private void processIncidentSla(Incident incident, Instant now, User defaultAdmin) {
+        // SLA Policy lookup
+        Optional<SlaPolicy> policyOpt = slaPolicyRepository.findById(incident.getPriority());
+        if (policyOpt.isEmpty()) {
+            return;
+        }
+        SlaPolicy policy = policyOpt.get();
+
         // 1. SLA Breach Check
         if (now.isAfter(incident.getSlaDueAt())) {
             if (!incidentEventRepository.existsByIncidentIdAndType(incident.getId(), "SLA_BREACHED")) {
@@ -76,28 +83,32 @@ public class SlaEscalationScheduler {
                 log.warn("Incident {} breached SLA deadline", incident.getCode());
             }
         } else {
-            // SLA At-Risk Check (within 30 minutes)
+            // SLA At-Risk Check: Spec 10.4 - use median resolution time in last 90 days (fallback 50% of SLA window)
             long remainingSeconds = Duration.between(now, incident.getSlaDueAt()).getSeconds();
-            if (remainingSeconds <= 1800) {
+            Instant cutoff90d = now.minus(90, java.time.temporal.ChronoUnit.DAYS);
+            long sampleCount = incidentRepository.countResolvedSinceByCategoryAndPriority(incident.getCategory(), incident.getPriority(), cutoff90d);
+            long expectedResolutionSeconds;
+            if (sampleCount >= 5) {
+                Double medianSec = incidentRepository.findMedianResolutionSeconds(incident.getCategory(), incident.getPriority().name(), cutoff90d);
+                expectedResolutionSeconds = (medianSec != null) ? medianSec.longValue() : (long) (policy.getResolveMinutes() * 60 * 0.5);
+            } else {
+                expectedResolutionSeconds = (long) (policy.getResolveMinutes() * 60 * 0.5); // 50% fallback
+            }
+
+            if (remainingSeconds < expectedResolutionSeconds) {
                 if (!incidentEventRepository.existsByIncidentIdAndType(incident.getId(), "SLA_AT_RISK")) {
                     incidentEventRepository.save(new IncidentEvent(
                             incident,
                             "SLA_AT_RISK",
                             null,
-                            "{\"remainingSeconds\": " + remainingSeconds + "}"
+                            "{\"remainingSeconds\": " + remainingSeconds + ", \"expectedResolutionSeconds\": " + expectedResolutionSeconds + "}"
                     ));
-                    log.info("Incident {} flagged SLA AT_RISK", incident.getCode());
+                    log.info("Incident {} flagged SLA AT_RISK (remaining: {}s, expected: {}s)", incident.getCode(), remainingSeconds, expectedResolutionSeconds);
                 }
             }
         }
 
         // 2. Escalation Tier Check
-        Optional<SlaPolicy> policyOpt = slaPolicyRepository.findById(incident.getPriority());
-        if (policyOpt.isEmpty()) {
-            return;
-        }
-
-        SlaPolicy policy = policyOpt.get();
         long totalSeconds = Duration.between(incident.getCreatedAt(), incident.getSlaDueAt()).getSeconds();
         if (totalSeconds <= 0) {
             return;

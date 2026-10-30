@@ -128,6 +128,8 @@ class SlaEscalationSchedulerTest {
         incident.setEscalationLevel(2);
 
         when(incidentRepository.findByStatusNotIn(anyCollection())).thenReturn(List.of(incident));
+        when(slaPolicyRepository.findById(IncidentPriority.P1))
+                .thenReturn(Optional.of(new SlaPolicy(IncidentPriority.P1, 100, 25, 75)));
         when(incidentEventRepository.existsByIncidentIdAndType(incident.getId(), "SLA_BREACHED")).thenReturn(false);
 
         scheduler.evaluateOpenIncidents();

@@ -5,6 +5,7 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   INCIDENTS: '/incidents',
   INCIDENT_DETAILS: (id: string = ':id') => `/incidents/${id}`,
+  WORKFLOWS: '/workflows',
   USERS: '/users',
   PROFILE: '/profile',
   NOT_FOUND: '*',

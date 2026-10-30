@@ -15,8 +15,8 @@ public class SignupRequest {
     @Size(max = 254, message = "Enter a valid email address")
     private String email;
 
-    @NotBlank(message = "Password must be 10 to 72 characters and different from your email")
-    @Size(min = 10, max = 72, message = "Password must be 10 to 72 characters and different from your email")
+    @NotBlank(message = "Password must be at least 8 characters and different from your email")
+    @Size(min = 8, max = 72, message = "Password must be at least 8 characters and different from your email")
     private String password;
 
     public SignupRequest() {}

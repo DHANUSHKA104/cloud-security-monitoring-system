@@ -28,7 +28,6 @@ def calculate_volume_anomalies(conn) -> List[VolumeAnomaly]:
     # Check last 24 hours for spikes
     cutoff_24h = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)
     for bucket, count in rows:
-        # Convert bucket to timezone-aware if needed
         bucket_dt = bucket if bucket.tzinfo else bucket.replace(tzinfo=datetime.timezone.utc)
         if bucket_dt >= cutoff_24h:
             z_score = (count - mean) / std_dev
@@ -46,12 +45,26 @@ def calculate_volume_anomalies(conn) -> List[VolumeAnomaly]:
 def calculate_coverage_gaps(conn) -> List[CoverageGap]:
     gaps: List[CoverageGap] = []
     with conn.cursor() as cur:
+        # 1. Upcoming shifts
         cur.execute("""
             SELECT starts_at, ends_at
             FROM shifts
             WHERE starts_at < NOW() + INTERVAL '7 days' AND ends_at > NOW();
         """)
         shifts = cur.fetchall()
+
+        # 2. Historical hourly incident load by (dow, hour) over past 8 weeks
+        cur.execute("""
+            SELECT EXTRACT(DOW FROM created_at)::int AS dow,
+                   EXTRACT(HOUR FROM created_at)::int AS hr,
+                   COUNT(*)::float / GREATEST(COUNT(DISTINCT date_trunc('day', created_at)), 1) AS avg_load
+            FROM incidents
+            WHERE created_at >= NOW() - INTERVAL '56 days'
+            GROUP BY dow, hr;
+        """)
+        history_rows = cur.fetchall()
+
+    hist_load_map = {(int(r[0]), int(r[1])): round(float(r[2]), 1) for r in history_rows if r[0] is not None and r[1] is not None}
 
     now = datetime.datetime.now(datetime.timezone.utc)
     base_date = now.date()
@@ -60,12 +73,17 @@ def calculate_coverage_gaps(conn) -> List[CoverageGap]:
     for day_offset in range(3):
         target_date = base_date + datetime.timedelta(days=day_offset)
         dow_name = target_date.strftime("%A").upper()
+        dow_num = int(target_date.strftime("%w"))
 
         for hour in peak_hours:
             slot_time = datetime.datetime(
                 target_date.year, target_date.month, target_date.day, hour, 0,
                 tzinfo=datetime.timezone.utc
             )
+            # Skip past hours
+            if slot_time <= now:
+                continue
+
             # Count scheduled analysts during slot_time
             count = 0
             for s_start, s_end in shifts:
@@ -74,7 +92,11 @@ def calculate_coverage_gaps(conn) -> List[CoverageGap]:
                 if start_dt <= slot_time < end_dt:
                     count += 1
 
-            expected_load = 3.0 if hour in (8, 16) else 1.5
+            # Expected load from history or baseline fallback
+            expected_load = hist_load_map.get((dow_num, hour))
+            if expected_load is None or expected_load == 0.0:
+                expected_load = 3.0 if hour in (8, 16) else 1.5
+
             if count < 1:
                 gaps.append(CoverageGap(
                     dayOfWeek=dow_name,

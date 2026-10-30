@@ -26,14 +26,24 @@ export const LoginForm: React.FC = () => {
   const [mfaToken, setMfaToken] = useState<string | null>(null);
 
   const navigate = useNavigate();
-  const { setSession } = useAuthStore();
+  const { user, isAuthenticated, setSession, clearSession } = useAuthStore();
+
+  const handleQuickFill = (role: 'ADMIN' | 'ANALYST') => {
+    if (role === 'ADMIN') {
+      setEmail('admin@cloudsec.local');
+      setPassword('Admin@CloudSec2026!');
+    } else {
+      setEmail('alice.analyst@cloudsec.local');
+      setPassword('Admin@CloudSec2026!');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!email) {
-      setError('Enter a valid email address');
+      setError('Please enter your full name or email address');
       return;
     }
     if (!password) {
@@ -88,9 +98,37 @@ export const LoginForm: React.FC = () => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form">
       <div>
-        <h2 className="text-lg font-semibold text-gray-100">Sign In</h2>
-        <p className="text-xs text-gray-400 mt-1">Enter your credentials to access the SOC console</p>
+        <h2 className="text-xl font-bold font-serif text-gray-100 tracking-tight">
+          Welcome back!
+        </h2>
+        <p className="text-xs text-purple-300/80 mt-1 font-light">
+          Where vigilant cloud defense meets serene clarity. Step into your command center.
+        </p>
       </div>
+
+      {isAuthenticated && user && (
+        <div className="p-3 bg-blue-950/40 border border-blue-900/60 rounded-md text-xs text-blue-200 space-y-2">
+          <div className="flex items-center justify-between">
+            <span>Currently signed in as: <strong>{user.fullName}</strong></span>
+            <span className="text-[10px] font-mono uppercase bg-blue-900/60 px-1.5 py-0.5 rounded">{user.role}</span>
+          </div>
+          <div className="flex items-center gap-2 pt-1 border-t border-blue-900/40">
+            <Link
+              to={ROUTES.DASHBOARD}
+              className="text-xs bg-blue-600 hover:bg-blue-500 text-white font-medium px-2.5 py-1 rounded transition-colors"
+            >
+              Continue to Dashboard &rarr;
+            </Link>
+            <button
+              type="button"
+              onClick={() => clearSession()}
+              className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1 underline"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div
@@ -104,12 +142,12 @@ export const LoginForm: React.FC = () => {
       <div className="space-y-3">
         <Input
           id="email-input"
-          label="Email Address"
-          type="email"
-          placeholder="analyst@cloudsec.local"
+          label="Full Name or Email Address"
+          type="text"
+          placeholder="e.g., Alice Analyst or admin@cloudsec.local"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
+          autoComplete="username"
           required
         />
 
@@ -125,19 +163,35 @@ export const LoginForm: React.FC = () => {
         />
       </div>
 
-      <div className="flex items-center justify-between text-xs text-gray-400">
-        <span className="text-[11px] text-gray-500">Default dev account available</span>
-        <span className="text-[11px] text-sky-400 font-mono">admin@cloudsec.local</span>
+      {/* Quick Fill Demo Helpers */}
+      <div className="flex items-center justify-between text-xs text-gray-400 pt-1">
+        <span className="text-[11px] text-gray-500">Quick Demo Fill:</span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => handleQuickFill('ADMIN')}
+            className="text-[11px] px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-purple-300 border border-purple-900/40 font-mono transition-colors"
+          >
+            Admin
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQuickFill('ANALYST')}
+            className="text-[11px] px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-sky-300 border border-sky-900/40 font-mono transition-colors"
+          >
+            Analyst
+          </button>
+        </div>
       </div>
 
       <Button type="submit" loading={loading} className="w-full">
         Sign In
       </Button>
 
-      <div className="text-center text-xs text-gray-400 pt-2 border-t border-gray-800">
+      <div className="text-center text-xs text-gray-400 pt-3 border-t border-gray-800">
         Don&apos;t have an account?{' '}
-        <Link to={ROUTES.SIGNUP} className="text-sky-400 hover:text-sky-300 font-medium">
-          Create viewer account
+        <Link to={ROUTES.SIGNUP} className="text-sky-400 hover:text-sky-300 font-medium underline">
+          Create new account (Sign Up)
         </Link>
       </div>
     </form>

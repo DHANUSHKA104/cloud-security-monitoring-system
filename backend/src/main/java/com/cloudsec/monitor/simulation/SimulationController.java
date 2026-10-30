@@ -26,7 +26,7 @@ public class SimulationController {
 
     public SimulationController(
             SimulationService simulationService,
-            @Value("${app.sim.api-key:cloudsec-sim-key}") String simApiKey
+            @Value("${app.sim.api-key}") String simApiKey
     ) {
         this.simulationService = simulationService;
         this.simApiKey = simApiKey;

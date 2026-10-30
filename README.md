@@ -36,7 +36,7 @@ The **Cloud Security Monitoring System** is a real-time SOC (Security Operations
    - Statistical volume anomaly detection and shift coverage gap warnings.
 4. **Module 05: Incident Management & Smart Routing**
    - Transparent 100-point smart routing algorithm:
-     $$\text{Total Score} = \text{Skill (40)} + \text{Queue (30)} + \text{History (15)} + \text{Runway (15)}$$
+     $$\text{Total Score} = \text{Skill (40)} + \text{Workload (30)} + \text{History (20)} + \text{Runway (10)}$$
    - Proactive SLA deadline timers: P1 (15m), P2 (60m), P3 (4h), P4 (24h).
    - Automated 2-tier escalation: Level 1 at 25% (unacknowledged, routes to Lead) and Level 2 at 75% (routes to Admin).
    - Drag-and-drop Kanban board with optimistic UI and rollback protection.
@@ -182,11 +182,14 @@ python simulate.py --scenario brute-force-burst --rate 5 --duration 10
 
 ## 5. Default Development Credentials
 
-| Role | Email | Default Password | Permissions |
+Configured in `.env` (`DEV_DEFAULT_PASSWORD=CloudSec_Local_2026_Secure!`):
+
+| Role | Email | Seed Password | Permissions |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `admin@cloudsec.local` | `change-me` | Full access: users, shifts, policies, assignments, overrides |
-| **Analyst** | `analyst1@cloudsec.local` | `change-me` | View incidents, manage assigned queue, investigate, resolve |
-| **Viewer** | `viewer1@cloudsec.local` | `change-me` | Read-only visibility: dashboard, incident logs |
+| **Admin** | `admin@cloudsec.local` | `.env: DEV_DEFAULT_PASSWORD` | Full access: users, shifts, policies, assignments, overrides |
+| **Analyst (Lead)** | `alice.analyst@cloudsec.local` | `.env: DEV_DEFAULT_PASSWORD` | CIR squad lead (on shift): investigate, resolve, triage |
+| **Analyst (Lead)** | `bob.analyst@cloudsec.local` | `.env: DEV_DEFAULT_PASSWORD` | Threat Intel lead: investigate, resolve, triage |
+| **Viewer** | `ravi.kumar@cloudsec.local` | `.env: DEV_DEFAULT_PASSWORD` | Read-only visibility: dashboard, incident dossier |
 
 ---
 

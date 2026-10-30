@@ -15,7 +15,7 @@ def load_sim_key_from_env() -> str:
                 line = line.strip()
                 if line.startswith("SIM_API_KEY="):
                     return line.split("=", 1)[1].strip()
-    return os.environ.get("SIM_API_KEY", "cloudsec-sim-key")
+    return os.environ.get("SIM_API_KEY", "")
 
 
 def generate_history(count: int, seed: int) -> List[Dict[str, Any]]:
@@ -104,6 +104,8 @@ def main():
 
     args = parser.parse_args()
     sim_key = args.sim_key or load_sim_key_from_env()
+    if not sim_key:
+        raise ValueError("SIM_API_KEY is required to seed history. Set it in .env or pass --sim-key.")
 
     print(f"Generating {args.count} historical resolved incidents...")
     batch = generate_history(args.count, args.seed)

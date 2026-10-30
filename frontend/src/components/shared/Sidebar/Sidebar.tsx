@@ -30,6 +30,16 @@ export const Sidebar: React.FC = () => {
       ),
     },
     {
+      label: 'SLA & Workflows',
+      path: ROUTES.WORKFLOWS,
+      roles: ['ADMIN', 'ANALYST', 'VIEWER'],
+      icon: (
+        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+    },
+    {
       label: 'User Management',
       path: ROUTES.USERS,
       roles: ['ADMIN'], // Admin only
@@ -59,39 +69,43 @@ export const Sidebar: React.FC = () => {
     <>
       {/* Mobile backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity ${
+        className={`fixed inset-0 z-40 bg-black/60 lg:hidden transition-opacity ${
           sidebarCollapsed ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setSidebarCollapsed(false)}
       />
 
       <aside
-        className={`fixed lg:static top-0 bottom-0 left-0 z-40 w-60 bg-gray-950 border-r border-gray-800 flex flex-col transition-transform duration-200 ease-in-out ${
+        className={`fixed lg:static top-0 bottom-0 left-0 z-40 w-60 bg-[#0b0916] border-r border-purple-900/25 flex flex-col transition-transform duration-200 ease-in-out ${
           sidebarCollapsed ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Brand */}
-        <div className="h-14 border-b border-gray-800 px-5 flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center font-bold text-white text-xs">
-            CS
+        <div className="h-14 border-b border-purple-900/25 px-5 flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-800 flex items-center justify-center shadow-md shadow-purple-950/50">
+            <svg className="w-4 h-4 text-amber-300 drop-shadow" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm0 2.18l6 2.32v4.59c0 4.14-2.73 8.01-6 9.09-3.27-1.08-6-4.95-6-9.09V6.5l6-2.32z" />
+            </svg>
           </div>
-          <span className="font-semibold text-sm tracking-wide text-gray-100">
-            CloudSec Monitor
-          </span>
+          <div>
+            <span className="font-semibold text-sm tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-purple-300">
+              CloudSec Monitor
+            </span>
+          </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
           {visibleItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               onClick={() => setSidebarCollapsed(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+                `flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${
                   isActive
-                    ? 'bg-blue-600/15 text-blue-400 font-semibold'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-900'
+                    ? 'bg-purple-600/20 text-purple-200 font-semibold border-l-2 border-purple-400 shadow-sm shadow-purple-950/40'
+                    : 'text-gray-400 hover:text-purple-200 hover:bg-purple-950/25 font-medium'
                 }`
               }
             >
@@ -102,10 +116,11 @@ export const Sidebar: React.FC = () => {
         </nav>
 
         {/* System footer badge */}
-        <div className="p-3 border-t border-gray-800 text-[11px] text-gray-500 text-center">
-          SOC Incident Automation v1.1
+        <div className="p-3 border-t border-purple-900/25 text-[11px] text-purple-400/60 font-mono text-center">
+          SOC Automation v1.1
         </div>
       </aside>
     </>
   );
 };
+export default Sidebar;

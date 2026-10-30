@@ -65,8 +65,8 @@ public class DashboardService {
             IncidentEventRepository incidentEventRepository,
             UserRepository userRepository,
             ShiftRepository shiftRepository,
-            @Value("${cloudsec.analytics.url:http://localhost:8000}") String analyticsUrl,
-            @Value("${cloudsec.analytics.api-key:cloudsec-analytics-key}") String analyticsApiKey
+            @Value("${app.analytics.url}") String analyticsUrl,
+            @Value("${app.analytics.api-key}") String analyticsApiKey
     ) {
         this.incidentRepository = incidentRepository;
         this.incidentEventRepository = incidentEventRepository;
@@ -113,7 +113,8 @@ public class DashboardService {
         }
 
         // Calculate SLA compliance and MTTR from resolved/closed incidents
-        List<Incident> closedList = incidentRepository.findByStatusIn(CLOSED_STATUSES);
+        Instant cutoff30d = Instant.now().minus(30, ChronoUnit.DAYS);
+        List<Incident> closedList = incidentRepository.findResolvedSince(cutoff30d);
         double slaCompliancePct = 100.0;
         double mttrMinutes = 0.0;
 
@@ -381,7 +382,7 @@ public class DashboardService {
         }
 
         return new DashboardInsightsResponse(
-                true,
+                false, // available = false when analytics microservice is down
                 volumeAnomalies,
                 coverageGaps,
                 resolutionStats

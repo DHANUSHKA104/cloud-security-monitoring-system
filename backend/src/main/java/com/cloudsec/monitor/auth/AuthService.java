@@ -52,8 +52,18 @@ public class AuthService {
 
     @Transactional
     public UserResponse signup(SignupRequest request) {
-        if (request.getPassword().equalsIgnoreCase(request.getEmail())) {
-            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must be 10 to 72 characters and different from your email");
+        String pwd = request.getPassword() != null ? request.getPassword() : "";
+        if (pwd.length() < 8 || pwd.length() > 72) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must be at least 8 characters");
+        }
+        if (!pwd.matches(".*[A-Z].*")) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must contain at least one capital letter (A-Z)");
+        }
+        if (!pwd.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?~`].*")) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must contain at least one special character (!@#$...)");
+        }
+        if (pwd.equalsIgnoreCase(request.getEmail())) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must be different from your email");
         }
 
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -74,10 +84,17 @@ public class AuthService {
 
     @Transactional(noRollbackFor = ApiException.class)
     public LoginResult login(LoginRequest request) {
-        Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
+        String identifier = request.getEmail() != null ? request.getEmail().trim() : "";
+        Optional<User> userOpt = userRepository.findByEmail(identifier);
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findByEmailIgnoreCase(identifier);
+        }
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findByFullNameIgnoreCase(identifier);
+        }
 
         if (userOpt.isEmpty()) {
-            throw new ApiException(ErrorCode.UNAUTHENTICATED, "Invalid email or password");
+            throw new ApiException(ErrorCode.UNAUTHENTICATED, "Invalid name/email or password");
         }
 
         User user = userOpt.get();
@@ -112,7 +129,7 @@ public class AuthService {
             }
 
             userRepository.saveAndFlush(user);
-            throw new ApiException(ErrorCode.UNAUTHENTICATED, "Invalid email or password");
+            throw new ApiException(ErrorCode.UNAUTHENTICATED, "Invalid name/email or password");
         }
 
         // Successful password match -> Reset failed attempts
@@ -212,7 +229,7 @@ public class AuthService {
         }
 
         if (request.getNewPassword().equalsIgnoreCase(user.getEmail())) {
-            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must be 10 to 72 characters and different from your email");
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must be at least 8 characters and different from your email");
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
@@ -222,6 +239,3 @@ public class AuthService {
     public record LoginResult(LoginResponse response, String refreshToken) {}
     private record MfaPendingSession(UUID userId, Instant expiresAt) {}
 }
-
-
-

@@ -39,7 +39,7 @@ public class DevDataInitializer implements CommandLineRunner {
             UserSkillRepository userSkillRepository,
             ShiftRepository shiftRepository,
             PasswordEncoder passwordEncoder,
-            @Value("${app.seed.dev-password:change-me}") String devPassword
+            @Value("${app.seed.dev-password}") String devPassword
     ) {
         this.userRepository = userRepository;
         this.teamRepository = teamRepository;
@@ -77,11 +77,16 @@ public class DevDataInitializer implements CommandLineRunner {
         teamMemberRepository.save(new TeamMember(cirTeam, bob, TeamRole.MEMBER));
         teamMemberRepository.save(new TeamMember(tiTeam, bob, TeamRole.LEAD));
 
-        // 4. Skills mapping
-        skillRepository.findByName("AWS Security").ifPresent(s -> userSkillRepository.save(new UserSkill(alice, s, 3)));
-        skillRepository.findByName("Kubernetes").ifPresent(s -> userSkillRepository.save(new UserSkill(alice, s, 2)));
-        skillRepository.findByName("Phishing").ifPresent(s -> userSkillRepository.save(new UserSkill(bob, s, 3)));
-        skillRepository.findByName("Malware Analysis").ifPresent(s -> userSkillRepository.save(new UserSkill(bob, s, 2)));
+        // 4. Skills mapping using official V2 Catalog names (auth-forensics, malware-analysis, data-protection, network-forensics, cloud-iam, compliance)
+        skillRepository.findByName("cloud-iam").ifPresent(s -> userSkillRepository.save(new UserSkill(alice, s, 3)));
+        skillRepository.findByName("auth-forensics").ifPresent(s -> userSkillRepository.save(new UserSkill(alice, s, 3)));
+        skillRepository.findByName("data-protection").ifPresent(s -> userSkillRepository.save(new UserSkill(alice, s, 2)));
+        skillRepository.findByName("incident-response").ifPresent(s -> userSkillRepository.save(new UserSkill(alice, s, 3)));
+
+        skillRepository.findByName("malware-analysis").ifPresent(s -> userSkillRepository.save(new UserSkill(bob, s, 3)));
+        skillRepository.findByName("network-forensics").ifPresent(s -> userSkillRepository.save(new UserSkill(bob, s, 3)));
+        skillRepository.findByName("auth-forensics").ifPresent(s -> userSkillRepository.save(new UserSkill(bob, s, 2)));
+        skillRepository.findByName("log-analysis").ifPresent(s -> userSkillRepository.save(new UserSkill(bob, s, 2)));
 
         // 5. Scheduled Active Shift for Alice (on shift right now)
         Instant now = Instant.now();

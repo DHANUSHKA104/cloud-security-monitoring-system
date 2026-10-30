@@ -6,7 +6,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { setupInterceptors } from './services/api/interceptors';
 import { App } from './App';
-import './styles/globals.css';
+import './assets/styles/globals.css';
 
 // Initialize HTTP interceptors
 setupInterceptors();

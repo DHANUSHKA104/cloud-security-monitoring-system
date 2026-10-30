@@ -1,0 +1,47 @@
+server:
+  port: 0
+  address: 127.0.0.1
+
+spring:
+  application:
+    name: cloudsec-monitor-backend-test
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/cloudsec}
+    username: ${DB_USER:cloudsec}
+    password: ${DB_PASSWORD:CloudSecLocal_DbPass_2026_Secure!}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    placeholders:
+      analyticsDbPassword: ${ANALYTICS_DB_PASSWORD:AnalyticsRo_LocalPass_2026_Secure!}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:c8f1e29a4b3d7e5c6a8b0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a}
+    access-token-expiration-minutes: 15
+    refresh-token-expiration-days: 7
+  sim:
+    api-key: ${SIM_API_KEY:sim_sec_9f8e7d6c5b4a3210fedcba9876543210}
+    admin-email: admin@cloudsec.local
+    admin-password: ${SIM_ADMIN_PASSWORD:Admin@CloudSec2026!}
+  seed:
+    dev-password: ${DEV_SEED_PASSWORD:Admin@CloudSec2026!}
+  analytics:
+    url: ${ANALYTICS_URL:http://127.0.0.1:8000}
+    api-key: ${ANALYTICS_API_KEY:ana_sec_1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d}
+    timeout-ms: 2000
+    cache-ttl-seconds: 60
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://127.0.0.1:5173
