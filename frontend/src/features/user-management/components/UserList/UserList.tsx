@@ -1,19 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { apiClient } from '@/services/api/apiClient';
 import { useAppStore } from '@/store/useAppStore';
+import { UserForm, UserFormData } from '../UserForm';
+import { UserDetails } from '../UserDetails';
 import { SkillEditor } from '../SkillEditor';
-import { User, Role } from '@/types';
-
-interface PageResponse<T> {
-  content: T[];
-  page: number;
-  size: number;
-  totalElements: number;
-  totalPages: number;
-}
+import { User, PageResponse } from '@/types';
 
 export const UserList: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -30,18 +23,23 @@ export const UserList: React.FC = () => {
 
   // Create User Modal
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({
-    fullName: '',
-    email: '',
-    password: '',
-    department: 'SOC',
-    role: 'ANALYST' as Role,
-  });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  // Edit User Modal
+  const [editTarget, setEditTarget] = useState<User | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Deactivate confirmation
+  const [deactivateTarget, setDeactivateTarget] = useState<User | null>(null);
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
+
   // Skill Editor Modal
   const [selectedUserForSkills, setSelectedUserForSkills] = useState<{ id: string; name: string } | null>(null);
+
+  // User Details Modal
+  const [selectedUserForDetails, setSelectedUserForDetails] = useState<User | null>(null);
 
   const { addToast } = useAppStore();
 
@@ -74,13 +72,21 @@ export const UserList: React.FC = () => {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleToggleActive = async (user: User) => {
+  // ── Deactivation (with confirmation) ──────────────────────────────────────
+
+  const openDeactivateConfirm = (user: User) => {
+    setDeactivateTarget(user);
+  };
+
+  const handleToggleActive = async (user: User, activate: boolean) => {
     try {
-      await apiClient.patch(`/api/users/${user.id}`, { active: !user.active });
+      setDeactivateLoading(true);
+      await apiClient.patch(`/api/users/${user.id}`, { active: activate });
       addToast({
         type: 'success',
-        message: `User ${user.fullName} ${user.active ? 'deactivated' : 'activated'}`,
+        message: `User ${user.fullName} ${activate ? 'activated' : 'deactivated'}`,
       });
+      setDeactivateTarget(null);
       fetchUsers();
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
@@ -88,37 +94,23 @@ export const UserList: React.FC = () => {
         type: 'error',
         message: apiErr.message || 'Failed to update user status',
       });
+    } finally {
+      setDeactivateLoading(false);
     }
   };
 
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreateError(null);
+  // ── Create User ────────────────────────────────────────────────────────────
 
-    if (createForm.password.length < 10) {
-      setCreateError('Password must be at least 10 characters');
-      return;
-    }
-    if (createForm.password === createForm.email) {
-      setCreateError('Password cannot match the email address');
-      return;
-    }
-
+  const handleCreateUser = async (formData: UserFormData) => {
     try {
       setCreateLoading(true);
-      await apiClient.post('/api/users', createForm);
+      setCreateError(null);
+      await apiClient.post('/api/users', formData);
       addToast({
         type: 'success',
-        message: `Account created for ${createForm.fullName}`,
+        message: `Account created for ${formData.fullName}`,
       });
       setCreateModalOpen(false);
-      setCreateForm({
-        fullName: '',
-        email: '',
-        password: '',
-        department: 'SOC',
-        role: 'ANALYST',
-      });
       fetchUsers();
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
@@ -128,8 +120,37 @@ export const UserList: React.FC = () => {
     }
   };
 
+  // ── Edit User ──────────────────────────────────────────────────────────────
+
+  const openEdit = (user: User) => {
+    setEditTarget(user);
+    setEditError(null);
+  };
+
+  const handleEditUser = async (formData: UserFormData) => {
+    if (!editTarget) return;
+    try {
+      setEditLoading(true);
+      setEditError(null);
+      await apiClient.patch(`/api/users/${editTarget.id}`, {
+        fullName: formData.fullName,
+        department: formData.department,
+        role: formData.role,
+        active: formData.active,
+      });
+      addToast({ type: 'success', message: `Profile updated for ${formData.fullName}` });
+      setEditTarget(null);
+      fetchUsers();
+    } catch (err: unknown) {
+      const apiErr = err as { message?: string };
+      setEditError(apiErr.message || 'Failed to update user');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="user-management-section">
       {/* Controls Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-gray-900/60 p-3 rounded-lg border border-gray-800">
         <div className="flex flex-wrap items-center gap-2 flex-1">
@@ -172,7 +193,13 @@ export const UserList: React.FC = () => {
           </select>
         </div>
 
-        <Button onClick={() => setCreateModalOpen(true)} size="sm">
+        <Button
+          onClick={() => {
+            setCreateError(null);
+            setCreateModalOpen(true);
+          }}
+          size="sm"
+        >
           + Add User
         </Button>
       </div>
@@ -208,8 +235,17 @@ export const UserList: React.FC = () => {
                 {users.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-800/30 transition-colors">
                     <td className="py-3 px-4">
-                      <div className="font-medium text-gray-100">{user.fullName}</div>
-                      <div className="text-[11px] text-gray-400 font-mono">{user.email}</div>
+                      <button
+                        type="button"
+                        className="text-left group"
+                        onClick={() => setSelectedUserForDetails(user)}
+                        title="Click to view detailed user profile"
+                      >
+                        <div className="font-medium text-gray-100 group-hover:text-blue-400 transition-colors">
+                          {user.fullName}
+                        </div>
+                        <div className="text-[11px] text-gray-400 font-mono">{user.email}</div>
+                      </button>
                     </td>
                     <td className="py-3 px-4 text-gray-400">{user.department || '—'}</td>
                     <td className="py-3 px-4">
@@ -252,20 +288,30 @@ export const UserList: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {user.role === 'ANALYST' && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSelectedUserForSkills({ id: user.id, name: user.fullName })
-                            }
-                            className="px-2 py-1 text-[11px] rounded bg-gray-800 hover:bg-gray-700 text-sky-400 border border-gray-700 transition-colors"
-                          >
-                            Skills
-                          </button>
-                        )}
+                        {/* Skills button — available for all user roles */}
                         <button
                           type="button"
-                          onClick={() => handleToggleActive(user)}
+                          onClick={() =>
+                            setSelectedUserForSkills({ id: user.id, name: user.fullName })
+                          }
+                          className="px-2 py-1 text-[11px] rounded bg-gray-800 hover:bg-gray-700 text-sky-400 border border-gray-700 transition-colors"
+                        >
+                          Skills
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(user)}
+                          className="px-2 py-1 text-[11px] rounded bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            user.active
+                              ? openDeactivateConfirm(user)
+                              : handleToggleActive(user, true)
+                          }
                           className={`px-2 py-1 text-[11px] rounded border transition-colors ${
                             user.active
                               ? 'bg-rose-950/40 text-rose-300 border-rose-800 hover:bg-rose-900/60'
@@ -312,7 +358,7 @@ export const UserList: React.FC = () => {
         </div>
       </div>
 
-      {/* Create User Modal */}
+      {/* Create User Modal — renders UserForm */}
       <Modal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
@@ -321,89 +367,66 @@ export const UserList: React.FC = () => {
         <div className="text-xs text-gray-400 mb-3">
           Add a new security operator, administrator or observer to the platform.
         </div>
-        <form onSubmit={handleCreateUser} className="space-y-3">
-          {createError && (
-            <div className="p-3 bg-red-950/60 border border-red-800 text-red-300 text-xs rounded-md">
-              {createError}
-            </div>
-          )}
+        <UserForm
+          mode="create"
+          onSubmit={handleCreateUser}
+          onCancel={() => setCreateModalOpen(false)}
+          loading={createLoading}
+          error={createError}
+        />
+      </Modal>
 
-          <Input
-            id="create-fullname"
-            label="Full Name"
-            placeholder="Dhanushka K S"
-            value={createForm.fullName}
-            onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
-            required
+      {/* Edit User Modal — renders UserForm */}
+      <Modal
+        open={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        title={`Edit Profile — ${editTarget?.fullName || ''}`}
+      >
+        {editTarget && (
+          <UserForm
+            mode="edit"
+            initialData={editTarget}
+            onSubmit={handleEditUser}
+            onCancel={() => setEditTarget(null)}
+            loading={editLoading}
+            error={editError}
           />
+        )}
+      </Modal>
 
-          <Input
-            id="create-email"
-            label="Email Address"
-            type="email"
-            placeholder="operator@cloudsec.local"
-            value={createForm.email}
-            onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-            required
-          />
-
-          <Input
-            id="create-password"
-            label="Temporary Password"
-            type="password"
-            placeholder="Minimum 10 characters"
-            value={createForm.password}
-            onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-            required
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="create-dept" className="block text-xs font-medium text-gray-300 mb-1">
-                Department
-              </label>
-              <input
-                id="create-dept"
-                type="text"
-                value={createForm.department}
-                onChange={(e) => setCreateForm({ ...createForm, department: e.target.value })}
-                className="w-full bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="create-role" className="block text-xs font-medium text-gray-300 mb-1">
-                Assigned Role
-              </label>
-              <select
-                id="create-role"
-                value={createForm.role}
-                onChange={(e) =>
-                  setCreateForm({ ...createForm, role: e.target.value as Role })
-                }
-                className="w-full bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+      {/* Deactivate Confirmation Modal */}
+      <Modal
+        open={!!deactivateTarget}
+        onClose={() => setDeactivateTarget(null)}
+        title="Confirm Deactivation"
+      >
+        {deactivateTarget && (
+          <div className="space-y-4">
+            <p className="text-xs text-gray-300">
+              Are you sure you want to deactivate{' '}
+              <span className="font-semibold text-gray-100">{deactivateTarget.fullName}</span>?
+            </p>
+            <p className="text-xs text-amber-400">
+              Their active refresh tokens will be revoked immediately, preventing further login.
+            </p>
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-800">
+              <Button
+                variant="secondary"
+                onClick={() => setDeactivateTarget(null)}
+                disabled={deactivateLoading}
               >
-                <option value="ADMIN">ADMIN</option>
-                <option value="ANALYST">ANALYST</option>
-                <option value="VIEWER">VIEWER</option>
-              </select>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => handleToggleActive(deactivateTarget, false)}
+                loading={deactivateLoading}
+              >
+                Deactivate User
+              </Button>
             </div>
           </div>
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-gray-800">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setCreateModalOpen(false)}
-              disabled={createLoading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" loading={createLoading}>
-              Create Account
-            </Button>
-          </div>
-        </form>
+        )}
       </Modal>
 
       {/* Skill Editor Modal */}
@@ -416,7 +439,21 @@ export const UserList: React.FC = () => {
           onSaved={() => fetchUsers()}
         />
       )}
+
+      {/* User Details Profile Modal */}
+      {selectedUserForDetails && (
+        <UserDetails
+          isOpen={!!selectedUserForDetails}
+          user={selectedUserForDetails}
+          onClose={() => setSelectedUserForDetails(null)}
+          onOpenSkills={(uid, name) => {
+            setSelectedUserForDetails(null);
+            setSelectedUserForSkills({ id: uid, name });
+          }}
+        />
+      )}
     </div>
   );
 };
+
 export default UserList;
