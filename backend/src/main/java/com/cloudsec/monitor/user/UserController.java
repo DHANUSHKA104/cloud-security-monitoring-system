@@ -18,11 +18,20 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
+
+    /**
+     * Allowlist of User entity field names that callers may sort by.
+     * Any other value is rejected with HTTP 400 to prevent PropertyReferenceException → 500.
+     */
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "createdAt", "updatedAt", "fullName", "email", "role", "department", "active"
+    );
 
     private final UserService userService;
 
@@ -41,10 +50,19 @@ public class UserController {
             @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
         String[] sortParts = sort.split(",");
-        String sortProp = sortParts[0];
-        Sort.Direction direction = sortParts.length > 1 && sortParts[1].equalsIgnoreCase("asc")
+        String sortProp = sortParts[0].trim();
+        Sort.Direction direction = sortParts.length > 1 && sortParts[1].trim().equalsIgnoreCase("asc")
                 ? Sort.Direction.ASC
                 : Sort.Direction.DESC;
+
+        // Fix B5: Validate sort field against the allowlist before building PageRequest.
+        // An unknown field would cause Spring Data to throw PropertyReferenceException → 500.
+        if (!ALLOWED_SORT_FIELDS.contains(sortProp)) {
+            throw new ApiException(
+                    ErrorCode.VALIDATION_ERROR,
+                    "Invalid sort field '" + sortProp + "'. Allowed values: " + ALLOWED_SORT_FIELDS
+            );
+        }
 
         if (page < 0) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "Page index must not be less than zero");
@@ -86,4 +104,3 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 }
-

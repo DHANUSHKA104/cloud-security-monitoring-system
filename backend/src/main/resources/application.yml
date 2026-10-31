@@ -11,7 +11,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/cloudsec}
     username: ${DB_USER:cloudsec}
-    password: ${DB_PASSWORD:cloudsec_dev_pass_2026}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

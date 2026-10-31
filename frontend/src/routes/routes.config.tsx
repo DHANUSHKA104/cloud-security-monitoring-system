@@ -1,5 +1,5 @@
 import React from 'react';
-import { RouteObject } from 'react-router-dom';
+import { RouteObject, Navigate } from 'react-router-dom';
 import { MainLayout } from '@/layout/MainLayout';
 import { AuthLayout } from '@/layout/AuthLayout';
 import { DashboardLayout } from '@/layout/DashboardLayout';
@@ -75,6 +75,10 @@ export const routesConfig: RouteObject[] = [
                 <Users />
               </ProtectedRoute>
             ),
+          },
+          {
+            path: '/user-management',
+            element: <Navigate to={ROUTES.USERS} replace />,
           },
         ],
       },

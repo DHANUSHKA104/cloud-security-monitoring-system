@@ -1,5 +1,6 @@
 package com.cloudsec.monitor.user;
 
+import com.cloudsec.monitor.auth.RefreshTokenService;
 import com.cloudsec.monitor.auth.dto.UserResponse;
 import com.cloudsec.monitor.common.dto.PageResponse;
 import com.cloudsec.monitor.common.exception.ApiException;
@@ -29,19 +30,22 @@ public class UserService {
     private final UserSkillRepository userSkillRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
     public UserService(
             UserRepository userRepository,
             SkillRepository skillRepository,
             UserSkillRepository userSkillRepository,
             TeamMemberRepository teamMemberRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            RefreshTokenService refreshTokenService
     ) {
         this.userRepository = userRepository;
         this.skillRepository = skillRepository;
         this.userSkillRepository = userSkillRepository;
         this.teamMemberRepository = teamMemberRepository;
         this.passwordEncoder = passwordEncoder;
+        this.refreshTokenService = refreshTokenService;
     }
 
     public PageResponse<UserResponse> getUsers(String q, Role role, Boolean active, Pageable pageable) {
@@ -92,6 +96,9 @@ public class UserService {
         return UserResponse.from(saved);
     }
 
+    // Fix B6: getUserById must be @Transactional(readOnly=true) so that lazy-loaded
+    // associations (team on TeamMember) are resolved within an open Hibernate session.
+    @Transactional(readOnly = true)
     public UserDetailResponse getUserById(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found"));
@@ -114,6 +121,26 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found"));
 
+        // Fix B2 & B3: Guard against deactivating or role-downgrading the last active ADMIN.
+        // Check BEFORE applying any change so we compare against the current DB state.
+        boolean isDeactivatingAdmin = user.getRole() == Role.ADMIN
+                && Boolean.FALSE.equals(request.getActive())
+                && user.isActive();
+
+        boolean isDowngradingAdmin = user.getRole() == Role.ADMIN
+                && request.getRole() != null
+                && request.getRole() != Role.ADMIN;
+
+        if (isDeactivatingAdmin || isDowngradingAdmin) {
+            long activeAdminCount = userRepository.countActiveAdmins();
+            if (activeAdminCount <= 1) {
+                throw new ApiException(
+                        ErrorCode.VALIDATION_ERROR,
+                        "Cannot deactivate or downgrade the last active administrator. Promote another user to ADMIN first."
+                );
+            }
+        }
+
         if (request.getFullName() != null && !request.getFullName().isBlank()) {
             user.setFullName(request.getFullName());
         }
@@ -123,8 +150,16 @@ public class UserService {
         if (request.getRole() != null) {
             user.setRole(request.getRole());
         }
+
+        // Fix B1: Revoke all refresh tokens when a user is deactivated.
+        // This ensures a deactivated user cannot obtain new access tokens via refresh,
+        // even before the 15-minute access token expiry.
         if (request.getActive() != null) {
+            boolean wasActive = user.isActive();
             user.setActive(request.getActive());
+            if (wasActive && !request.getActive()) {
+                refreshTokenService.revokeAllUserTokens(id);
+            }
         }
 
         User saved = userRepository.save(user);
