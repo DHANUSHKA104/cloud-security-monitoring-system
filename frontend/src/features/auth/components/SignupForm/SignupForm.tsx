@@ -27,7 +27,7 @@ export const SignupForm: React.FC = () => {
 
   const navigate = useNavigate();
   const { addToast } = useAppStore();
-  const { setSession } = useAuthStore();
+  const { user, isAuthenticated, setSession, clearSession } = useAuthStore();
 
   // Password rules validation
   const hasMinLength = password.length >= 8;
@@ -116,6 +116,30 @@ export const SignupForm: React.FC = () => {
           Empower your cloud security journey. Build a safer, more resilient digital world.
         </p>
       </div>
+
+      {isAuthenticated && user && (
+        <div className="p-3 bg-purple-950/40 border border-purple-800/60 rounded-md text-xs text-purple-200 space-y-2">
+          <div className="flex items-center justify-between">
+            <span>Currently signed in as: <strong>{user.fullName}</strong></span>
+            <span className="text-[10px] font-mono uppercase bg-purple-900/60 px-1.5 py-0.5 rounded">{user.role}</span>
+          </div>
+          <div className="flex items-center gap-2 pt-1 border-t border-purple-800/40">
+            <Link
+              to={ROUTES.DASHBOARD}
+              className="text-xs bg-purple-600 hover:bg-purple-500 text-white font-medium px-2.5 py-1 rounded transition-colors"
+            >
+              Continue to Dashboard &rarr;
+            </Link>
+            <button
+              type="button"
+              onClick={() => clearSession()}
+              className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1 underline"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div

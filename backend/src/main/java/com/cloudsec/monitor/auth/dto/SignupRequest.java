@@ -32,7 +32,7 @@ public class SignupRequest {
     }
 
     public void setFullName(String fullName) {
-        this.fullName = fullName;
+        this.fullName = fullName != null ? fullName.trim() : null;
     }
 
     public String getEmail() {
@@ -40,7 +40,7 @@ public class SignupRequest {
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        this.email = email != null ? email.trim().toLowerCase() : null;
     }
 
     public String getPassword() {
