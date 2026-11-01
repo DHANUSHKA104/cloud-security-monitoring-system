@@ -108,6 +108,24 @@ public class TeamService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found"));
 
+        // Prevent inactive users from being added to teams.
+        if (!user.isActive()) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR,
+                    "Cannot add an inactive user to a team. Reactivate the user first.");
+        }
+
+        // Enforce single-LEAD rule: demote any existing LEAD to MEMBER before promoting a new one.
+        // Performed within the same transaction for consistency.
+        if (role == TeamRole.LEAD) {
+            List<TeamMember> currentLeads = teamMemberRepository.findTeamLeads(teamId);
+            for (TeamMember existingLead : currentLeads) {
+                if (!existingLead.getUser().getId().equals(userId)) {
+                    existingLead.setTeamRole(TeamRole.MEMBER);
+                    teamMemberRepository.save(existingLead);
+                }
+            }
+        }
+
         TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
                 .orElse(new TeamMember(team, user, role));
 
@@ -117,6 +135,18 @@ public class TeamService {
 
     @Transactional
     public void removeTeamMember(UUID teamId, UUID userId) {
+        // Return 404 when the team does not exist.
+        if (!teamRepository.existsById(teamId)) {
+            throw new ApiException(ErrorCode.NOT_FOUND, "Team not found");
+        }
+        // Return 404 when the user does not exist.
+        if (!userRepository.existsById(userId)) {
+            throw new ApiException(ErrorCode.NOT_FOUND, "User not found");
+        }
+        // Return 404 when the membership does not exist.
+        if (teamMemberRepository.findByTeamIdAndUserId(teamId, userId).isEmpty()) {
+            throw new ApiException(ErrorCode.NOT_FOUND, "Membership not found");
+        }
         teamMemberRepository.deleteByTeamIdAndUserId(teamId, userId);
     }
 
