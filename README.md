@@ -191,16 +191,28 @@ python simulate.py --scenario brute-force-burst --rate 5 --duration 10
 
 ---
 
-## 5. Default Development Credentials
+## 5. Development Credentials & Role Architecture
 
-Configured in `.env` (`DEV_DEFAULT_PASSWORD=<YOUR_SECURE_DEV_PASSWORD>`):
+The platform separates **System RBAC Roles** (`ADMIN`, `ANALYST`, `VIEWER`) from **Squad Membership Roles** (`LEAD`, `MEMBER`):
 
-| Role | Email | Seed Password | Permissions |
-| :--- | :--- | :--- | :--- |
-| **Admin** | `admin@cloudsec.local` | `.env: DEV_DEFAULT_PASSWORD` | Full access: users, shifts, policies, assignments, overrides |
-| **Analyst (Lead)** | `alice.analyst@cloudsec.local` | `.env: DEV_DEFAULT_PASSWORD` | CIR squad lead (on shift): investigate, resolve, triage |
-| **Analyst (Lead)** | `bob.analyst@cloudsec.local` | `.env: DEV_DEFAULT_PASSWORD` | Threat Intel lead: investigate, resolve, triage |
-| **Viewer** | `ravi.kumar@cloudsec.local` | `.env: DEV_DEFAULT_PASSWORD` | Read-only visibility: dashboard, incident dossier |
+| User Principal | System Role | Squad Assignment & Squad Role | Seed Password | Operational Scope |
+| :--- | :--- | :--- | :--- | :--- |
+| `admin@cloudsec.local` | **ADMIN** | N/A (Global System Administrator) | `.env: DEV_DEFAULT_PASSWORD` | Full access: user management, team management, asset inventory, SLA policy configuration, overrides |
+| `alice.analyst@cloudsec.local` | **ANALYST** | CIR Squad (**LEAD**) — *On Shift Now* | `.env: DEV_DEFAULT_PASSWORD` | Investigate assigned incidents, execute response playbooks, triage/contain alerts, squad-level reassignment |
+| `bob.analyst@cloudsec.local` | **ANALYST** | Threat Intel Unit (**LEAD**), CIR Squad (**MEMBER**) | `.env: DEV_DEFAULT_PASSWORD` | Threat intel investigations, malware playbook execution, second shift rotation |
+| `ravi.kumar@cloudsec.local` | **VIEWER** | N/A | `.env: DEV_DEFAULT_PASSWORD` | Read-only visibility: dashboard metrics, incident dossiers, SLA compliance monitoring |
+
+### Team Collaboration & Deployment Modes
+
+1. **Mode A: Independent Local Development (Default for Individual Development)**
+   - Each developer clones the repository and runs their own local PostgreSQL database and application services.
+   - Ideal for coding, running isolated unit tests, and experimenting without network dependencies.
+   - Each developer can test any role locally using the pre-seeded credentials above.
+
+2. **Mode B: Centralized Team Deployment (Recommended for Mentor Demos & Shared Work)**
+   - The Team Lead hosts PostgreSQL and the Spring Boot Backend (on a local network IP e.g. `http://192.168.x.x:8080`, or cloud database like AWS RDS / Neon / Supabase).
+   - Teammates point their frontend `.env` to the shared backend (`VITE_API_BASE_URL=http://<shared-ip>:8080/api`).
+   - In this mode, the Team Lead centrally controls the single database as Main Admin, creating teams, registering assets, and promoting teammates who sign up from their laptops.
 
 ---
 
