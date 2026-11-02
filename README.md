@@ -41,6 +41,16 @@ The **Cloud Security Monitoring System** is a real-time SOC (Security Operations
    - Automated 2-tier escalation: Level 1 at 25% (unacknowledged, routes to Lead) and Level 2 at 75% (routes to Admin).
    - Drag-and-drop Kanban board with optimistic UI and rollback protection.
    - Reopening workflow with mandatory justification (5–500 chars).
+5. **Module 08: Asset Inventory**
+   - Centralized cloud asset registry (AWS, Azure, GCP, On-Premises) spanning Compute, Database, Storage, Network, and IAM.
+   - Dynamic asset backfill from incident telemetry linking security alerts to cloud resources.
+   - Criticality tiering (CRITICAL, HIGH, MEDIUM, LOW) with IP and ARN tracking.
+   - Operational drawer, quick stats KPI aggregation, and RBAC-controlled asset registration.
+6. **Module 10: Response Playbooks (Guided SOPs)**
+   - Standard Operating Procedures (SOPs) for all 7 attack categories (`AUTH_ATTACK`, `DATA_EXPOSURE`, `MALWARE`, `NETWORK_INTRUSION`, `CLOUD_MISCONFIG`, `POLICY_VIOLATION`, `OTHER`).
+   - Step-by-step interactive response checklist embedded directly inside Incident Details.
+   - Restrictive foreign-key integrity preserving complete forensic execution history.
+   - Real-time progress tracking, action types (INVESTIGATION, CONTAINMENT, ERADICATION, RECOVERY, COMMUNICATION), and timeline event auditing.
 
 ---
 
@@ -64,7 +74,7 @@ The **Cloud Security Monitoring System** is a real-time SOC (Security Operations
 |  - Flyway Database Migrations      - Actuator Health & Metrics                    |
 +----------------------+------------------------------------+-----------------------+
                        |                                    |
-          Internal REST| (X-Analytics-Key)       PostgreSQL | (HikariCP, Flyway V1-V3)
+          Internal REST| (X-Analytics-Key)       PostgreSQL | (HikariCP, Flyway V1-V5)
                        v                                    v
 +-------------------------------+   +-----------------------------------------------+
 |         ANALYTICS TIER        |   |                 DATABASE TIER                 |
@@ -128,11 +138,12 @@ cd frontend && cp .env.example .env && cd ..
 ```
 
 ### Step 2: Database Initialization
-Create the database in PostgreSQL:
+Create the development and test databases in PostgreSQL:
 ```sql
 CREATE DATABASE cloudsec;
+CREATE DATABASE cloudsec_test;
 ```
-*(Flyway will automatically execute migrations `V1`, `V2`, and `V3` when the backend boots).*
+*(Flyway will automatically execute migrations `V1` through `V5` additively when the backend boots or tests run).*
 
 ### Step 3: Run the Services
 

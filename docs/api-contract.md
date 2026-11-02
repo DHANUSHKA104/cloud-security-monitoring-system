@@ -151,7 +151,85 @@ Every API error adheres strictly to this structure:
 
 ---
 
-## 5. Dev & Simulator Endpoints (Dev Profile Only, Header `X-Sim-Key`)
+## 5. Asset Inventory (`/api/assets`)
+
+| Method | Path | Access | Description / Notes |
+|---|---|---|---|
+| `GET` | `/api/assets` | Authenticated | Query: `q`, `provider`, `criticality`, `type`, `page`, `size`. Paged asset inventory. |
+| `GET` | `/api/assets/stats` | Authenticated | Inventory KPIs: `{ totalAssets, criticalCount, highCount, mediumCount, lowCount, byProvider }`. |
+| `GET` | `/api/assets/{id}` | Authenticated | Full asset details by UUID. |
+| `GET` | `/api/assets/code/{code}` | Authenticated | Asset details by unique code (e.g., `AST-AWS-001`). |
+| `POST` | `/api/assets` | Admin, Analyst | Body: `{ code, name, type, cloudProvider, criticality, ipAddress, resourceId, status, ownerDepartment }`. |
+| `PATCH` | `/api/assets/{id}` | Admin, Analyst | Body: `{ name, status, criticality, ipAddress, ownerDepartment, active }`. |
+| `DELETE` | `/api/assets/{id}` | Admin | Soft deactivates asset (`active = false`). |
+
+### Asset Response Shape
+```json
+{
+  "id": "7f8b2c1a-4d3e-4b2a-8c1e-9f0a2b3c4d5e",
+  "code": "AST-AWS-PROD-01",
+  "name": "Production EKS Auth Cluster",
+  "type": "COMPUTE",
+  "cloudProvider": "AWS",
+  "criticality": "CRITICAL",
+  "ipAddress": "10.0.1.42",
+  "resourceId": "arn:aws:eks:us-east-1:123456789012:cluster/prod-auth",
+  "status": "ACTIVE",
+  "ownerDepartment": "Cloud Infrastructure",
+  "active": true,
+  "createdAt": "2026-11-02T10:00:00Z",
+  "updatedAt": "2026-11-02T10:00:00Z"
+}
+```
+
+---
+
+## 6. Response Playbooks (`/api/playbooks`, `/api/incidents/{id}/playbook`)
+
+| Method | Path | Access | Description / Notes |
+|---|---|---|---|
+| `GET` | `/api/playbooks` | Authenticated | List all registered active playbooks with standard operating procedure steps. |
+| `GET` | `/api/playbooks/category/{category}` | Authenticated | Retrieve playbook matching incident category (`AUTH_ATTACK`, `DATA_EXPOSURE`, `MALWARE`, `NETWORK_INTRUSION`, `CLOUD_MISCONFIG`, `POLICY_VIOLATION`, `OTHER`). |
+| `GET` | `/api/incidents/{incidentId}/playbook` | Authenticated | Live execution status of the playbook assigned to incident: steps, executed status, remarks, progress percentage. |
+| `POST` | `/api/incidents/{incidentId}/playbook/steps/{stepId}/execute` | Admin, Analyst | Execute step: Body `{ remarks, commandOutput }`. Records execution history, updates progress, and emits timeline audit event. |
+
+### Playbook Status Response Shape
+```json
+{
+  "incidentId": "0c9a7e55-3b21-4f6d-a8c4-91d2e5f7b3a2",
+  "playbook": {
+    "id": "11111111-2222-3333-4444-555555555555",
+    "name": "Account Compromise & Credential Stuffing SOP",
+    "category": "AUTH_ATTACK",
+    "description": "Standard Operating Procedure for active authentication attacks and compromised credentials"
+  },
+  "steps": [
+    {
+      "stepId": "22222222-3333-4444-5555-666666666666",
+      "stepOrder": 1,
+      "title": "Revoke Active Sessions",
+      "actionType": "CONTAINMENT",
+      "estimatedDurationMinutes": 5,
+      "instruction": "Revoke all active OAuth tokens and JWT refresh sessions for the affected user principal.",
+      "executed": true,
+      "executedAt": "2026-11-02T12:00:00Z",
+      "executedBy": {
+        "id": "b3f1c2a4-0d5e-4c1a-9a3b-7e2f6d8c1a90",
+        "fullName": "Alice Analyst"
+      },
+      "remarks": "Revoked session tokens via Auth API",
+      "commandOutput": "200 OK - Revocation confirmed"
+    }
+  ],
+  "totalSteps": 4,
+  "completedCount": 1,
+  "progressPercent": 25.0
+}
+```
+
+---
+
+## 7. Dev & Simulator Endpoints (Dev Profile Only, Header `X-Sim-Key`)
 
 | Method | Path | Access | Description |
 |---|---|---|---|
