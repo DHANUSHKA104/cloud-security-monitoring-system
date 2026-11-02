@@ -163,4 +163,39 @@ class IncidentServiceTest {
         assertNull(response.getResolvedAt());
         verify(incidentEventRepository).save(any(IncidentEvent.class));
     }
+
+    @Test
+    void updateStatus_WhenClosed_ThrowsConflictRejectingDirectMutation() {
+        UUID incId = UUID.randomUUID();
+        Incident incident = new Incident("INC-2026-0001", "Title", "Desc", IncidentPriority.P2,
+                IncidentStatus.CLOSED, "AUTH", null, null, Instant.now().plus(120, ChronoUnit.MINUTES), null, null);
+        incident.setId(incId);
+        incident.setAssignee(sampleAnalyst);
+
+        when(incidentRepository.findById(incId)).thenReturn(Optional.of(incident));
+
+        UpdateStatusRequest request = new UpdateStatusRequest(IncidentStatus.IN_PROGRESS, "Trying to resume work directly");
+
+        ApiException ex = assertThrows(ApiException.class, () -> incidentService.updateStatus(incId, request, sampleAnalyst));
+        assertEquals(ErrorCode.CONFLICT, ex.getErrorCode());
+        assertTrue(ex.getMessage().contains("A closed incident cannot change status; use the reopen endpoint to reopen."));
+    }
+
+    @Test
+    void reopenIncident_WhenClosed_TransitionsToInProgressWithJustification() {
+        UUID incId = UUID.randomUUID();
+        Incident incident = new Incident("INC-2026-0001", "Title", "Desc", IncidentPriority.P2,
+                IncidentStatus.CLOSED, "AUTH", null, null, Instant.now().plus(120, ChronoUnit.MINUTES), null, null);
+        incident.setId(incId);
+
+        when(incidentRepository.findById(incId)).thenReturn(Optional.of(incident));
+        when(incidentRepository.save(any(Incident.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ReopenRequest request = new ReopenRequest("Post-closure security audit anomaly flagged");
+        IncidentResponse response = incidentService.reopenIncident(incId, request, sampleAdmin);
+
+        assertEquals(IncidentStatus.IN_PROGRESS, response.getStatus());
+        assertNull(response.getResolvedAt());
+        verify(incidentEventRepository).save(any(IncidentEvent.class));
+    }
 }
