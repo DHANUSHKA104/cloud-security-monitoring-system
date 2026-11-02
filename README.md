@@ -182,7 +182,7 @@ python simulate.py --scenario brute-force-burst --rate 5 --duration 10
 
 ## 5. Default Development Credentials
 
-Configured in `.env` (`DEV_DEFAULT_PASSWORD=CloudSec_Local_2026_Secure!`):
+Configured in `.env` (`DEV_DEFAULT_PASSWORD=<YOUR_SECURE_DEV_PASSWORD>`):
 
 | Role | Email | Seed Password | Permissions |
 | :--- | :--- | :--- | :--- |

@@ -1,5 +1,6 @@
 package com.cloudsec.monitor.user;
 
+import com.cloudsec.monitor.auth.RefreshTokenService;
 import com.cloudsec.monitor.auth.dto.UserResponse;
 import com.cloudsec.monitor.common.dto.PageResponse;
 import com.cloudsec.monitor.common.exception.ApiException;
@@ -9,6 +10,7 @@ import com.cloudsec.monitor.user.dto.CreateUserRequest;
 import com.cloudsec.monitor.user.dto.UpdateUserRequest;
 import com.cloudsec.monitor.user.dto.UserDetailResponse;
 import com.cloudsec.monitor.user.dto.UserSkillRequest;
+import jakarta.persistence.EntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -29,19 +31,25 @@ public class UserService {
     private final UserSkillRepository userSkillRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
+    private final EntityManager entityManager;
 
     public UserService(
             UserRepository userRepository,
             SkillRepository skillRepository,
             UserSkillRepository userSkillRepository,
             TeamMemberRepository teamMemberRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            RefreshTokenService refreshTokenService,
+            EntityManager entityManager
     ) {
         this.userRepository = userRepository;
         this.skillRepository = skillRepository;
         this.userSkillRepository = userSkillRepository;
         this.teamMemberRepository = teamMemberRepository;
         this.passwordEncoder = passwordEncoder;
+        this.refreshTokenService = refreshTokenService;
+        this.entityManager = entityManager;
     }
 
     public PageResponse<UserResponse> getUsers(String q, Role role, Boolean active, Pageable pageable) {
@@ -113,6 +121,22 @@ public class UserService {
     public UserResponse updateUser(UUID id, UpdateUserRequest request) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found"));
+
+        boolean wasActiveAdmin = user.getRole() == Role.ADMIN && user.isActive();
+        boolean willBeActiveAdmin = (request.getRole() != null ? request.getRole() : user.getRole()) == Role.ADMIN
+                && (request.getActive() != null ? request.getActive() : user.isActive());
+
+        if (wasActiveAdmin && !willBeActiveAdmin) {
+            entityManager.createNativeQuery("SELECT pg_advisory_xact_lock(42)").getResultList();
+            long activeAdmins = userRepository.countActiveAdmins();
+            if (activeAdmins <= 1) {
+                throw new ApiException(ErrorCode.CONFLICT, "Cannot deactivate or demote the last remaining active administrator");
+            }
+        }
+
+        if (request.getActive() != null && !request.getActive() && user.isActive()) {
+            refreshTokenService.revokeAllUserTokens(user.getId());
+        }
 
         if (request.getFullName() != null && !request.getFullName().isBlank()) {
             user.setFullName(request.getFullName());

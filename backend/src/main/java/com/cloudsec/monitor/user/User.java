@@ -1,5 +1,6 @@
 package com.cloudsec.monitor.user;
 
+import com.cloudsec.monitor.security.MfaCryptoConverter;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
@@ -34,6 +35,7 @@ public class User {
     @Column(name = "mfa_enabled", nullable = false)
     private boolean mfaEnabled = false;
 
+    @Convert(converter = MfaCryptoConverter.class)
     @Column(name = "mfa_secret")
     private String mfaSecret;
 

@@ -6,7 +6,7 @@ spring:
   application:
     name: cloudsec-monitor-backend-test
   datasource:
-    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/cloudsec}
+    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/cloudsec_test}
     username: ${DB_USER:cloudsec}
     password: ${DB_PASSWORD:CloudSecLocal_DbPass_2026_Secure!}
     driver-class-name: org.postgresql.Driver
@@ -30,6 +30,8 @@ app:
     secret: ${JWT_SECRET:c8f1e29a4b3d7e5c6a8b0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a}
     access-token-expiration-minutes: 15
     refresh-token-expiration-days: 7
+  mfa:
+    encryption-key: ${MFA_ENCRYPTION_KEY:c8f1e29a4b3d7e5c6a8b0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a}
   sim:
     api-key: ${SIM_API_KEY:sim_sec_9f8e7d6c5b4a3210fedcba9876543210}
     admin-email: admin@cloudsec.local

@@ -11,13 +11,13 @@ import com.cloudsec.monitor.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -112,5 +112,33 @@ class AuthServiceTest {
         ApiException ex = assertThrows(ApiException.class, () -> authService.login(request));
         assertEquals(ErrorCode.ACCOUNT_LOCKED, ex.getErrorCode());
         verify(passwordEncoder, never()).matches(anyString(), anyString());
+    }
+
+    @Test
+    void login_AmbiguousFullName_PerformsDummyCheckAndRejectsWithoutModifyingUsers() {
+        LoginRequest request = new LoginRequest("John Doe", "password123");
+        User user1 = new User("john1@cloudsec.local", "hash1", "John Doe", "SOC", Role.ANALYST);
+        User user2 = new User("john2@cloudsec.local", "hash2", "John Doe", "SOC", Role.VIEWER);
+
+        when(userRepository.findAllByFullNameIgnoreCaseAndActiveTrue("John Doe")).thenReturn(List.of(user1, user2));
+        when(passwordEncoder.matches(eq("password123"), anyString())).thenReturn(false);
+
+        ApiException ex = assertThrows(ApiException.class, () -> authService.login(request));
+        assertEquals(ErrorCode.UNAUTHENTICATED, ex.getErrorCode());
+        verify(userRepository, never()).save(any());
+        verify(userRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void login_DeactivatedUser_RejectsWithForbidden() {
+        LoginRequest request = new LoginRequest("inactive@cloudsec.local", "password123");
+        User inactiveUser = new User("inactive@cloudsec.local", "hash", "Inactive User", "SOC", Role.ANALYST);
+        inactiveUser.setActive(false);
+
+        when(userRepository.findByEmail("inactive@cloudsec.local")).thenReturn(Optional.of(inactiveUser));
+
+        ApiException ex = assertThrows(ApiException.class, () -> authService.login(request));
+        assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
+        assertEquals("This account has been deactivated", ex.getMessage());
     }
 }

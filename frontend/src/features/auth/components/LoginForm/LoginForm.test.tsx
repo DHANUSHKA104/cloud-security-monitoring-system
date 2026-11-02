@@ -11,8 +11,8 @@ describe('LoginForm Component', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByLabelText(/Email Address/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Full Name or Email Address/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Sign In/i })).toBeInTheDocument();
   });
 
@@ -26,6 +26,6 @@ describe('LoginForm Component', () => {
     const form = screen.getByTestId('login-form');
     fireEvent.submit(form);
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/Enter a valid email address/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/Please enter your full name or email address/i);
   });
 });

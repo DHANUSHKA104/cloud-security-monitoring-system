@@ -19,4 +19,9 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     boolean existsByEmail(String email);
 
     java.util.List<User> findByRole(Role role);
+
+    java.util.List<User> findAllByFullNameIgnoreCaseAndActiveTrue(String fullName);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(u) FROM User u WHERE u.role = 'ADMIN' AND u.active = true")
+    long countActiveAdmins();
 }

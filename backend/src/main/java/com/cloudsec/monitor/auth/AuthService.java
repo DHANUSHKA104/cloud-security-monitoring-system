@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,6 +24,7 @@ public class AuthService {
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCKOUT_MINUTES = 15;
+    private static final String DUMMY_HASH = "$2a$10$wK1.wP5gXn6uLSm8V9rOaeDfZ57EwG5w/G9G4e7YyW9zV5q8L7u5G";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -85,15 +87,26 @@ public class AuthService {
     @Transactional(noRollbackFor = ApiException.class)
     public LoginResult login(LoginRequest request) {
         String identifier = request.getEmail() != null ? request.getEmail().trim() : "";
-        Optional<User> userOpt = userRepository.findByEmail(identifier);
-        if (userOpt.isEmpty()) {
-            userOpt = userRepository.findByEmailIgnoreCase(identifier);
-        }
-        if (userOpt.isEmpty()) {
-            userOpt = userRepository.findByFullNameIgnoreCase(identifier);
+        Optional<User> userOpt;
+
+        if (identifier.contains("@")) {
+            userOpt = userRepository.findByEmail(identifier);
+            if (userOpt.isEmpty()) {
+                userOpt = userRepository.findByEmailIgnoreCase(identifier);
+            }
+        } else {
+            List<User> matches = userRepository.findAllByFullNameIgnoreCaseAndActiveTrue(identifier);
+            if (matches.size() == 1) {
+                userOpt = Optional.of(matches.get(0));
+            } else {
+                // Ambiguous matches (>1 active user) or 0 users: perform dummy password comparison to avoid timing leak
+                passwordEncoder.matches(request.getPassword() != null ? request.getPassword() : "", DUMMY_HASH);
+                throw new ApiException(ErrorCode.UNAUTHENTICATED, "Invalid name/email or password");
+            }
         }
 
         if (userOpt.isEmpty()) {
+            passwordEncoder.matches(request.getPassword() != null ? request.getPassword() : "", DUMMY_HASH);
             throw new ApiException(ErrorCode.UNAUTHENTICATED, "Invalid name/email or password");
         }
 

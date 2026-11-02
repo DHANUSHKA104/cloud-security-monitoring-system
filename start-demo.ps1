@@ -60,8 +60,10 @@ if (-not $backendPort) {
             "mvn.cmd" 
         } elseif (Get-Command "mvn" -ErrorAction SilentlyContinue) { 
             "mvn" 
-        } elseif (Test-Path "C:\Users\Dhanushka K S\Downloads\apache-maven-3.9.16-bin\apache-maven-3.9.16\bin\mvn.cmd") {
-            "C:\Users\Dhanushka K S\Downloads\apache-maven-3.9.16-bin\apache-maven-3.9.16\bin\mvn.cmd"
+        } elseif ($env:MAVEN_HOME -and (Test-Path (Join-Path $env:MAVEN_HOME "bin\mvn.cmd"))) {
+            Join-Path $env:MAVEN_HOME "bin\mvn.cmd"
+        } elseif ($env:M2_HOME -and (Test-Path (Join-Path $env:M2_HOME "bin\mvn.cmd"))) {
+            Join-Path $env:M2_HOME "bin\mvn.cmd"
         } else {
             "mvn.cmd"
         }

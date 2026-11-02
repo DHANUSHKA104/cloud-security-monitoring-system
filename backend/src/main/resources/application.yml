@@ -40,6 +40,8 @@ app:
     secret: ${JWT_SECRET}
     access-token-expiration-minutes: ${JWT_ACCESS_MINUTES:15}
     refresh-token-expiration-days: ${JWT_REFRESH_DAYS:7}
+  mfa:
+    encryption-key: ${MFA_ENCRYPTION_KEY:c8f1e29a4b3d7e5c6a8b0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a}
   sim:
     api-key: ${SIM_API_KEY}
     admin-email: ${SIM_ADMIN_EMAIL:admin@cloudsec.local}
