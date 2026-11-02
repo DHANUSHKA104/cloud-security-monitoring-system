@@ -11,6 +11,12 @@ public class DashboardSummaryResponse {
     private long atRiskCount;
     private long breachedCount;
 
+    // Asset & Playbook integrated metrics
+    private long totalAssets;
+    private long criticalAssets;
+    private long totalPlaybooks;
+    private long executedPlaybookSteps;
+
     public DashboardSummaryResponse() {}
 
     public DashboardSummaryResponse(
@@ -95,5 +101,37 @@ public class DashboardSummaryResponse {
 
     public void setBreachedCount(long breachedCount) {
         this.breachedCount = breachedCount;
+    }
+
+    public long getTotalAssets() {
+        return totalAssets;
+    }
+
+    public void setTotalAssets(long totalAssets) {
+        this.totalAssets = totalAssets;
+    }
+
+    public long getCriticalAssets() {
+        return criticalAssets;
+    }
+
+    public void setCriticalAssets(long criticalAssets) {
+        this.criticalAssets = criticalAssets;
+    }
+
+    public long getTotalPlaybooks() {
+        return totalPlaybooks;
+    }
+
+    public void setTotalPlaybooks(long totalPlaybooks) {
+        this.totalPlaybooks = totalPlaybooks;
+    }
+
+    public long getExecutedPlaybookSteps() {
+        return executedPlaybookSteps;
+    }
+
+    public void setExecutedPlaybookSteps(long executedPlaybookSteps) {
+        this.executedPlaybookSteps = executedPlaybookSteps;
     }
 }

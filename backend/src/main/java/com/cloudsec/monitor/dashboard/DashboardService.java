@@ -1,5 +1,9 @@
 package com.cloudsec.monitor.dashboard;
 
+import com.cloudsec.monitor.asset.AssetRepository;
+import com.cloudsec.monitor.asset.Criticality;
+import com.cloudsec.monitor.playbook.PlaybookRepository;
+import com.cloudsec.monitor.playbook.IncidentPlaybookExecutionRepository;
 import com.cloudsec.monitor.dashboard.dto.AnalystWorkloadResponse;
 import com.cloudsec.monitor.dashboard.dto.DashboardEventFeedResponse;
 import com.cloudsec.monitor.dashboard.dto.DashboardInsightsResponse;
@@ -48,6 +52,15 @@ public class DashboardService {
     private final UserRepository userRepository;
     private final ShiftRepository shiftRepository;
     private final RestClient restClient;
+
+    @Autowired(required = false)
+    private AssetRepository assetRepository;
+
+    @Autowired(required = false)
+    private PlaybookRepository playbookRepository;
+
+    @Autowired(required = false)
+    private IncidentPlaybookExecutionRepository executionRepository;
 
     public DashboardService(
             IncidentRepository incidentRepository,
@@ -150,7 +163,7 @@ public class DashboardService {
             }
         }
 
-        return new DashboardSummaryResponse(
+        DashboardSummaryResponse resp = new DashboardSummaryResponse(
                 openIncidents,
                 p1Open,
                 threatScore,
@@ -160,6 +173,17 @@ public class DashboardService {
                 atRiskCount,
                 breachedCount
         );
+        if (assetRepository != null) {
+            resp.setTotalAssets(assetRepository.countByActiveTrue());
+            resp.setCriticalAssets(assetRepository.countByCriticalityAndActiveTrue(Criticality.CRITICAL));
+        }
+        if (playbookRepository != null) {
+            resp.setTotalPlaybooks(playbookRepository.count());
+        }
+        if (executionRepository != null) {
+            resp.setExecutedPlaybookSteps(executionRepository.countByStatus("COMPLETED"));
+        }
+        return resp;
     }
 
     public DashboardTrendsResponse getTrends() {

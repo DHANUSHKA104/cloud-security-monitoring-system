@@ -134,6 +134,10 @@ export interface DashboardSummary {
   mttrMinutes: number;
   atRiskCount: number;
   breachedCount: number;
+  totalAssets?: number;
+  criticalAssets?: number;
+  totalPlaybooks?: number;
+  executedPlaybookSteps?: number;
 }
 
 export interface TrendDataPoint {
