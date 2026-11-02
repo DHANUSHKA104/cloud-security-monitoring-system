@@ -1,7 +1,7 @@
 # Cloud Security Monitoring System with Incident Management Assistance
 
 **Infosys Springboard Internship | Java Domain**  
-**Team Lead:** Dhanushka  
+**Team Project:** Milestone 1 Delivery  
 **Project Version:** 1.1.0  
 **License:** MIT  
 
@@ -210,9 +210,9 @@ The platform separates **System RBAC Roles** (`ADMIN`, `ANALYST`, `VIEWER`) from
    - Each developer can test any role locally using the pre-seeded credentials above.
 
 2. **Mode B: Centralized Team Deployment (Recommended for Mentor Demos & Shared Work)**
-   - The Team Lead hosts PostgreSQL and the Spring Boot Backend (on a local network IP e.g. `http://192.168.x.x:8080`, or cloud database like AWS RDS / Neon / Supabase).
+   - The Host / Administrator hosts PostgreSQL and the Spring Boot Backend (on a local network IP e.g. `http://192.168.x.x:8080`, or cloud database like AWS RDS / Neon / Supabase).
    - Teammates point their frontend `.env` to the shared backend (`VITE_API_BASE_URL=http://<shared-ip>:8080/api`).
-   - In this mode, the Team Lead centrally controls the single database as Main Admin, creating teams, registering assets, and promoting teammates who sign up from their laptops.
+   - In this mode, the Administrator centrally controls the single database as Main Admin, creating teams, registering assets, and promoting teammates who sign up from their laptops.
 
 ---
 

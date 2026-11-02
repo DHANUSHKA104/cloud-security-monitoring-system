@@ -12,7 +12,7 @@ $ProjectRoot = $PSScriptRoot
 
 Write-Host "======================================================================" -ForegroundColor Cyan
 Write-Host "   Cloud Security Monitoring System - Automated Demo Launcher         " -ForegroundColor Cyan
-Write-Host "   Lead: Dhanushka | Domain: Java SOC Incident Management             " -ForegroundColor Cyan
+Write-Host "   Project: CloudSec Monitor | Domain: Java SOC Incident Management             " -ForegroundColor Cyan
 Write-Host "======================================================================" -ForegroundColor Cyan
 
 # 0. Load environment variables from .env
