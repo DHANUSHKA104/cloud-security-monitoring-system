@@ -35,17 +35,14 @@ public class TeamService {
 
     @Transactional(readOnly = true)
     public List<TeamResponse> getTeams() {
-        return teamRepository.findAll().stream().map(team -> {
-            List<TeamMember> members = teamMemberRepository.findByTeamId(team.getId());
-            Optional<TeamMember> leadOpt = members.stream()
-                    .filter(m -> m.getTeamRole() == TeamRole.LEAD)
-                    .findFirst();
+        return teamRepository.findAll().stream().map(this::buildTeamResponse).collect(Collectors.toList());
+    }
 
-            UUID leadId = leadOpt.map(m -> m.getUser().getId()).orElse(null);
-            String leadName = leadOpt.map(m -> m.getUser().getFullName()).orElse(null);
-
-            return TeamResponse.from(team, leadId, leadName, members.size());
-        }).collect(Collectors.toList());
+    @Transactional(readOnly = true)
+    public TeamResponse getTeamById(UUID id) {
+        Team team = teamRepository.findById(id)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Team not found"));
+        return buildTeamResponse(team);
     }
 
     @Transactional
@@ -76,17 +73,7 @@ public class TeamService {
         }
 
         Team saved = teamRepository.save(team);
-        List<TeamMember> members = teamMemberRepository.findByTeamId(id);
-        Optional<TeamMember> leadOpt = members.stream()
-                .filter(m -> m.getTeamRole() == TeamRole.LEAD)
-                .findFirst();
-
-        return TeamResponse.from(
-                saved,
-                leadOpt.map(m -> m.getUser().getId()).orElse(null),
-                leadOpt.map(m -> m.getUser().getFullName()).orElse(null),
-                members.size()
-        );
+        return buildTeamResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -108,6 +95,10 @@ public class TeamService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found"));
 
+        if (!user.isActive()) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Cannot assign inactive user to team");
+        }
+
         TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
                 .orElse(new TeamMember(team, user, role));
 
@@ -117,7 +108,14 @@ public class TeamService {
 
     @Transactional
     public void removeTeamMember(UUID teamId, UUID userId) {
-        teamMemberRepository.deleteByTeamIdAndUserId(teamId, userId);
+        if (!teamRepository.existsById(teamId)) {
+            throw new ApiException(ErrorCode.NOT_FOUND, "Team not found");
+        }
+
+        TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Team member not found"));
+
+        teamMemberRepository.delete(member);
     }
 
     public List<SkillResponse> getSkills() {
@@ -135,5 +133,22 @@ public class TeamService {
         Skill skill = new Skill(request.getName());
         Skill saved = skillRepository.save(skill);
         return SkillResponse.from(saved);
+    }
+
+    private TeamResponse buildTeamResponse(Team team) {
+        List<TeamMember> members = teamMemberRepository.findByTeamId(team.getId());
+        List<TeamMember> leads = members.stream()
+                .filter(m -> m.getTeamRole() == TeamRole.LEAD)
+                .collect(Collectors.toList());
+
+        UUID leadId = leads.isEmpty() ? null : leads.get(0).getUser().getId();
+        String leadName = leads.stream()
+                .map(m -> m.getUser().getFullName())
+                .collect(Collectors.joining(", "));
+        if (leadName.isBlank()) {
+            leadName = null;
+        }
+
+        return TeamResponse.from(team, leadId, leadName, members.size());
     }
 }

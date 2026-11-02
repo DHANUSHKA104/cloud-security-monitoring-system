@@ -98,6 +98,9 @@ public class SmartRoutingService {
 
         for (Shift shift : userShiftMap.values()) {
             User user = shift.getUser();
+            if (!user.isActive()) {
+                continue; // Exclude inactive analysts from smart routing
+            }
             int skillScore = calculateSkillScore(user.getId(), category);
             double weightedLoad = calculateCandidateLoad(user.getId());
             int workloadScore = calculateWorkloadScore(weightedLoad);
@@ -116,6 +119,12 @@ public class SmartRoutingService {
             ));
         }
 
+        if (candidates.isEmpty()) {
+            User fallback = (teamId != null) ? getTeamLeadOrAdmin(teamId) : getAdminUser();
+            String explanationJson = buildExplanationJson(fallback != null ? fallback.getId() : null, true, Collections.emptyList());
+            return new RoutingResult(fallback, explanationJson, true);
+        }
+
         // Sort descending by total score, then tie-breaker: lower workload load
         candidates.sort(Comparator.comparingInt(CandidateScore::getTotal).reversed()
                 .thenComparingDouble(CandidateScore::getWeightedLoad));
@@ -130,8 +139,10 @@ public class SmartRoutingService {
     private User getTeamLeadOrAdmin(UUID teamId) {
         if (teamMemberRepository != null) {
             List<TeamMember> leads = teamMemberRepository.findTeamLeads(teamId);
-            if (!leads.isEmpty()) {
-                return leads.get(0).getUser();
+            for (TeamMember m : leads) {
+                if (m.getUser() != null && m.getUser().isActive()) {
+                    return m.getUser();
+                }
             }
         }
         return getAdminUser();
@@ -140,8 +151,10 @@ public class SmartRoutingService {
     private User getAdminUser() {
         if (userRepository != null) {
             List<User> admins = userRepository.findByRole(Role.ADMIN);
-            if (!admins.isEmpty()) {
-                return admins.get(0);
+            for (User u : admins) {
+                if (u.isActive()) {
+                    return u;
+                }
             }
         }
         return null;
@@ -189,21 +202,24 @@ public class SmartRoutingService {
     }
 
     private double calculateCandidateLoad(UUID userId) {
-        List<Incident> openList = incidentRepository.findOpenIncidentsForUser(userId);
-        if (openList != null && !openList.isEmpty()) {
-            double load = 0.0;
-            for (Incident inc : openList) {
-                load += switch (inc.getPriority()) {
-                    case P1 -> 3.0;
-                    case P2 -> 2.0;
-                    case P3 -> 1.0;
-                    case P4 -> 0.5;
-                };
+        if (incidentRepository != null) {
+            List<Incident> openList = incidentRepository.findOpenIncidentsForUser(userId);
+            if (openList != null && !openList.isEmpty()) {
+                double load = 0.0;
+                for (Incident inc : openList) {
+                    load += switch (inc.getPriority()) {
+                        case P1 -> 3.0;
+                        case P2 -> 2.0;
+                        case P3 -> 1.0;
+                        case P4 -> 0.5;
+                    };
+                }
+                return load;
             }
-            return load;
+            long openCount = incidentRepository.countOpenIncidentsForUser(userId);
+            return (double) openCount * 2.0;
         }
-        long openCount = incidentRepository.countOpenIncidentsForUser(userId);
-        return (double) openCount * 2.0;
+        return 0.0;
     }
 
     private int calculateWorkloadScore(double weightedLoad) {
