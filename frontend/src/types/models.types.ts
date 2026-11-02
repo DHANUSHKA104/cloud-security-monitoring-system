@@ -104,6 +104,8 @@ export interface Incident {
     fullName: string;
   } | null;
   assignmentExplanation?: AssignmentExplanation;
+  assetId?: string;
+  riskScore?: number;
 }
 
 export interface IncidentEvent {
