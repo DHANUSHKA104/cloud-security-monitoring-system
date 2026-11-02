@@ -3,7 +3,7 @@ import { IncidentStatus } from '@/types/common.types';
 import { STATUS_COLORS } from '@/constants/app.constants';
 
 export const StatusBadge: React.FC<{ status: IncidentStatus }> = ({ status }) => {
-  const c = STATUS_COLORS[status];
+  const c = STATUS_COLORS[status] || STATUS_COLORS.OPEN;
   return (
     <span
       className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide"

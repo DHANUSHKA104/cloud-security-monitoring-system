@@ -10,7 +10,8 @@ import { ROUTES } from '@/constants/routes.constants';
 export const IncidentDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { data: incident, isLoading } = useIncident(id || '');
+  const { data: rawIncident, isLoading } = useIncident(id || '');
+  const incident = (rawIncident as any)?.incident || rawIncident;
   const { data: timeline, refetch: refetchTimeline } = useIncidentTimeline(id || '');
 
   if (isLoading) {
@@ -100,7 +101,7 @@ export const IncidentDetails: React.FC = () => {
             Why this analyst? (100-Point Scoring Algorithm)
           </h3>
           <div className="space-y-2">
-            {incident.assignmentExplanation.candidates.map((cand) => (
+            {incident.assignmentExplanation.candidates.map((cand: any) => (
               <div
                 key={cand.userId}
                 className="p-2.5 rounded bg-gray-950 border border-gray-800 flex items-center justify-between text-xs"
