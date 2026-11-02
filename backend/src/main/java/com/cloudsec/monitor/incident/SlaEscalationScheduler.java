@@ -31,6 +31,23 @@ public class SlaEscalationScheduler {
     private final TeamMemberRepository teamMemberRepository;
     private final Clock clock;
 
+    @Autowired
+    public SlaEscalationScheduler(
+            IncidentRepository incidentRepository,
+            IncidentEventRepository incidentEventRepository,
+            SlaPolicyRepository slaPolicyRepository,
+            UserRepository userRepository,
+            TeamMemberRepository teamMemberRepository,
+            @Autowired(required = false) Clock clock
+    ) {
+        this.incidentRepository = incidentRepository;
+        this.incidentEventRepository = incidentEventRepository;
+        this.slaPolicyRepository = slaPolicyRepository;
+        this.userRepository = userRepository;
+        this.teamMemberRepository = teamMemberRepository;
+        this.clock = clock != null ? clock : Clock.systemUTC();
+    }
+
     public SlaEscalationScheduler(
             IncidentRepository incidentRepository,
             IncidentEventRepository incidentEventRepository,
@@ -39,22 +56,6 @@ public class SlaEscalationScheduler {
             TeamMemberRepository teamMemberRepository
     ) {
         this(incidentRepository, incidentEventRepository, slaPolicyRepository, userRepository, teamMemberRepository, Clock.systemUTC());
-    }
-
-    public SlaEscalationScheduler(
-            IncidentRepository incidentRepository,
-            IncidentEventRepository incidentEventRepository,
-            SlaPolicyRepository slaPolicyRepository,
-            UserRepository userRepository,
-            TeamMemberRepository teamMemberRepository,
-            Clock clock
-    ) {
-        this.incidentRepository = incidentRepository;
-        this.incidentEventRepository = incidentEventRepository;
-        this.slaPolicyRepository = slaPolicyRepository;
-        this.userRepository = userRepository;
-        this.teamMemberRepository = teamMemberRepository;
-        this.clock = clock != null ? clock : Clock.systemUTC();
     }
 
     @Scheduled(fixedDelay = 30000, initialDelay = 15000)

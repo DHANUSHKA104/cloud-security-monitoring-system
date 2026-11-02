@@ -13,6 +13,7 @@ import {
   Users,
   Incidents,
   IncidentDetails,
+  Assets,
   Workflows,
   NotFound,
 } from '@/pages';
@@ -64,6 +65,10 @@ export const routesConfig: RouteObject[] = [
           {
             path: '/incidents/:id',
             element: <IncidentDetails />,
+          },
+          {
+            path: ROUTES.ASSETS,
+            element: <Assets />,
           },
           {
             path: ROUTES.WORKFLOWS,
