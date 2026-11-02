@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { apiClient } from '@/services/api/apiClient';
+import { API_ENDPOINTS } from '@/constants/api.constants';
 import { useAppStore } from '@/store/useAppStore';
 import { formatDateTime } from '@/utils/formatters/dateFormatter';
 
@@ -45,7 +46,7 @@ export const Profile: React.FC = () => {
 
     try {
       setPasswordLoading(true);
-      await apiClient.put('/api/auth/password', {
+      await apiClient.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
         currentPassword,
         newPassword,
       });
