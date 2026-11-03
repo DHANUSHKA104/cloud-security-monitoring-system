@@ -40,6 +40,10 @@ if (-not $pgPort) {
     if ($pgExe) {
         Write-Host "  Starting PostgreSQL daemon..." -ForegroundColor Gray
         $pgDataDir = if ($env:PGDATA) { $env:PGDATA } elseif (Test-Path "C:\projects\pgsql\data") { "C:\projects\pgsql\data" } else { Join-Path (Split-Path (Split-Path $pgExe)) "data" }
+        $stalePid = Join-Path $pgDataDir "postmaster.pid"
+        if (Test-Path $stalePid) {
+            Remove-Item -Force $stalePid -ErrorAction SilentlyContinue
+        }
         Start-Process -FilePath $pgExe -ArgumentList "-D", $pgDataDir -WindowStyle Minimized
         Start-Sleep -Seconds 3
     } else {
