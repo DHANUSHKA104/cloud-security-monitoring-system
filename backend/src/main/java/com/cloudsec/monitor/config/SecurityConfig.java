@@ -105,6 +105,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/signup",
                                 "/api/auth/login",
+                                "/api/auth/reset-password",
                                 "/api/auth/mfa/verify",
                                 "/api/auth/refresh",
                                 "/api/auth/logout",

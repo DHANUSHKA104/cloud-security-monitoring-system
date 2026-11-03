@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
     MFA_ENABLE: '/auth/mfa/enable',
     MFA_DISABLE: '/auth/mfa/disable',
     CHANGE_PASSWORD: '/auth/change-password',
+    RESET_PASSWORD: '/auth/reset-password',
   },
   // Users & Teams
   USERS: {

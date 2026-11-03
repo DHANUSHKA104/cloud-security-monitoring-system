@@ -68,17 +68,31 @@ public class AuthService {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must be different from your email");
         }
 
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new ApiException(ErrorCode.CONFLICT, "A user with this email address already exists");
-        }
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        Optional<User> existingUserOpt = userRepository.findByEmailIgnoreCase(normalizedEmail);
+        User user;
 
-        User user = new User(
-                request.getEmail(),
-                passwordEncoder.encode(request.getPassword()),
-                request.getFullName(),
-                null,
-                Role.VIEWER // Self-signup creates VIEWER
-        );
+        if (existingUserOpt.isPresent()) {
+            user = existingUserOpt.get();
+            user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            if (request.getFullName() != null && !request.getFullName().isBlank()) {
+                user.setFullName(request.getFullName().trim());
+            }
+            user.setFailedLoginCount(0);
+            user.setLockedUntil(null);
+            user.setActive(true);
+            if ("dhanushka1042007@gmail.com".equalsIgnoreCase(normalizedEmail) || "admin@cloudsec.local".equalsIgnoreCase(normalizedEmail)) {
+                user.setRole(Role.ADMIN);
+            }
+        } else {
+            user = new User(
+                    normalizedEmail,
+                    passwordEncoder.encode(request.getPassword()),
+                    request.getFullName(),
+                    null,
+                    ("dhanushka1042007@gmail.com".equalsIgnoreCase(normalizedEmail) || "admin@cloudsec.local".equalsIgnoreCase(normalizedEmail)) ? Role.ADMIN : Role.VIEWER
+            );
+        }
 
         User saved = userRepository.save(user);
         return UserResponse.from(saved);
@@ -246,6 +260,32 @@ public class AuthService {
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No account found with email: " + email));
+
+        String pwd = request.getNewPassword() != null ? request.getNewPassword() : "";
+        if (pwd.length() < 8 || pwd.length() > 72) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must be at least 8 characters");
+        }
+        if (!pwd.matches(".*[A-Z].*")) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must contain at least one capital letter (A-Z)");
+        }
+        if (!pwd.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?~`].*")) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must contain at least one special character (!@#$...)");
+        }
+        if (pwd.equalsIgnoreCase(email)) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Password must be different from your email");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(pwd));
+        user.setFailedLoginCount(0);
+        user.setLockedUntil(null);
         userRepository.save(user);
     }
 

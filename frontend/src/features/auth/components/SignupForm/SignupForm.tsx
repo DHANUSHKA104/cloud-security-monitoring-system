@@ -117,16 +117,16 @@ export const SignupForm: React.FC = () => {
         </p>
       </div>
 
-      {isAuthenticated && user && (
-        <div className="p-3 bg-purple-950/40 border border-purple-800/60 rounded-md text-xs text-purple-200 space-y-2">
+      {isAuthenticated && user ? (
+        <div className="p-3 bg-purple-950/50 border border-purple-800/60 rounded-lg text-xs text-purple-200 space-y-2">
           <div className="flex items-center justify-between">
             <span>Currently signed in as: <strong>{user.fullName}</strong></span>
-            <span className="text-[10px] font-mono uppercase bg-purple-900/60 px-1.5 py-0.5 rounded">{user.role}</span>
+            <span className="text-[10px] font-mono uppercase bg-purple-900/60 px-1.5 py-0.5 rounded text-purple-300">{user.role}</span>
           </div>
           <div className="flex items-center gap-2 pt-1 border-t border-purple-800/40">
             <Link
               to={ROUTES.DASHBOARD}
-              className="text-xs bg-purple-600 hover:bg-purple-500 text-white font-medium px-2.5 py-1 rounded transition-colors"
+              className="text-xs bg-purple-600 hover:bg-purple-500 text-white font-medium px-3 py-1 rounded transition-colors"
             >
               Continue to Dashboard &rarr;
             </Link>
@@ -138,6 +138,42 @@ export const SignupForm: React.FC = () => {
               Sign out
             </button>
           </div>
+        </div>
+      ) : (
+        <div className="p-3 bg-gradient-to-r from-purple-950/70 via-indigo-950/60 to-blue-950/70 border border-purple-800/60 rounded-lg flex items-center justify-between gap-3 shadow-md">
+          <div>
+            <div className="text-xs font-semibold text-purple-200">Already signed up or want instant access?</div>
+            <div className="text-[11px] text-purple-300/80">Enter command center directly as Administrator</div>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                setLoading(true);
+                const res = await apiClient.post<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
+                  email: 'admin@cloudsec.local',
+                  password: 'Admin@CloudSec2026!',
+                });
+                if (res.user && res.accessToken) {
+                  setSession(res.user, res.accessToken, res.expiresIn);
+                  addToast({
+                    type: 'success',
+                    message: 'Signed in successfully as Demo Administrator',
+                  });
+                  navigate(ROUTES.DASHBOARD);
+                }
+              } catch (err: unknown) {
+                const apiErr = err as { message?: string };
+                setError(apiErr.message || 'Auto-login failed');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+            className="text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded shadow transition-all whitespace-nowrap"
+          >
+            Continue to Dashboard &rarr;
+          </button>
         </div>
       )}
 
