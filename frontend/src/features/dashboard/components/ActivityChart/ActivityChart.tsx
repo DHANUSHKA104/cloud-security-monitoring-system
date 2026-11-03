@@ -9,6 +9,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { DashboardTrends } from '@/types/models.types';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface ActivityChartProps {
   trends?: DashboardTrends;
@@ -16,6 +17,8 @@ interface ActivityChartProps {
 
 export const ActivityChart: React.FC<ActivityChartProps> = ({ trends }) => {
   const [timeframe, setTimeframe] = useState<'hourly' | 'daily'>('daily');
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
 
   const rawData =
     timeframe === 'hourly' ? trends?.hourly || [] : trends?.daily || [];
@@ -73,15 +76,31 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({ trends }) => {
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
-              <XAxis dataKey="time" stroke="#6b7280" fontSize={11} tickLine={false} />
-              <YAxis stroke="#6b7280" fontSize={11} tickLine={false} allowDecimals={false} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={isLight ? '#e2e8f0' : '#1f2937'}
+                vertical={false}
+              />
+              <XAxis
+                dataKey="time"
+                stroke={isLight ? '#94a3b8' : '#6b7280'}
+                fontSize={11}
+                tickLine={false}
+              />
+              <YAxis
+                stroke={isLight ? '#94a3b8' : '#6b7280'}
+                fontSize={11}
+                tickLine={false}
+                allowDecimals={false}
+              />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#111827',
-                  borderColor: '#374151',
+                  backgroundColor: isLight ? '#ffffff' : '#111827',
+                  borderColor: isLight ? '#e2e8f0' : '#374151',
+                  color: isLight ? '#0f172a' : '#f9fafb',
                   borderRadius: '0.375rem',
                   fontSize: '12px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                 }}
               />
               <Area
@@ -99,3 +118,4 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({ trends }) => {
     </div>
   );
 };
+export default ActivityChart;
