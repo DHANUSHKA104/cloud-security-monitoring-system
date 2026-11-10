@@ -14,10 +14,16 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  server: {
-    port: 5173,
-    host: true,
+ server: {
+  port: 5173,
+  host: true,
+  proxy: {
+    '/api': {
+      target: 'http://localhost:8080',
+      changeOrigin: true,
+    },
   },
+},
   // @ts-expect-error vitest config
   test: {
     globals: true,

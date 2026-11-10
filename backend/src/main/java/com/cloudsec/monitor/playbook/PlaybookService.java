@@ -19,44 +19,80 @@ public class PlaybookService {
             case "AUTH_ATTACK":
                 return List.of(
                     new PlaybookStep(
-                        "Review authentication logs",
-                        "Examine failed login attempts and identify suspicious IP addresses."
+                        "Review Failed Login Attempts",
+                        "Examine authentication logs for repeated failed login attempts, unusual login times, and suspicious source IP addresses."
                     ),
                     new PlaybookStep(
-                        "Verify the affected account",
-                        "Check whether the login activity is expected or suspicious."
+                        "Identify the Affected Account",
+                        "Check the account involved in the activity and review available user, device, and login details."
                     ),
                     new PlaybookStep(
-                        "Notify the security analyst",
-                        "Report the suspicious login activity to the security team."
+                        "Check for Successful Logins",
+                        "Determine whether any successful login occurred after repeated failed attempts and identify potentially unauthorized access."
+                    ),
+                    new PlaybookStep(
+                        "Verify Suspicious Activity",
+                        "Compare the login activity with expected user behavior and verify unusual activity with the account owner or responsible team."
+                    ),
+                    new PlaybookStep(
+                        "Escalate the Security Incident",
+                        "Share the investigation findings with the security analyst for review and approval of appropriate response actions."
+                    ),
+                    new PlaybookStep(
+                        "Document Investigation Results",
+                        "Record suspicious IP addresses, affected accounts, timestamps, evidence, and the final investigation status."
                     )
                 );
 
             case "NETWORK_INTRUSION":
                 return List.of(
                     new PlaybookStep(
-                        "Review network activity",
-                        "Inspect the incident's network events and destination addresses."
+                        "Review Network Security Alerts",
+                        "Examine firewall logs, network monitoring alerts, suspicious connections, and unusual traffic patterns."
                     ),
                     new PlaybookStep(
-                        "Assess the affected asset",
-                        "Determine which system may be involved and assess the risk."
+                        "Identify Source and Destination",
+                        "Inspect source and destination IP addresses, ports, protocols, and connection timestamps."
                     ),
                     new PlaybookStep(
-                        "Notify the security analyst",
-                        "Share the findings with the responsible security team."
+                        "Identify the Affected Asset",
+                        "Determine which server, endpoint, or network resource may be involved in the suspicious activity."
+                    ),
+                    new PlaybookStep(
+                        "Analyze Related Network Events",
+                        "Correlate available network logs and related security events to understand the possible scope of the intrusion."
+                    ),
+                    new PlaybookStep(
+                        "Assess Risk and Escalate",
+                        "Evaluate the potential impact and share the findings with the security analyst for appropriate response decisions."
+                    ),
+                    new PlaybookStep(
+                        "Document Investigation Results",
+                        "Record affected assets, suspicious addresses, observed traffic, collected evidence, and investigation status."
                     )
                 );
 
             default:
                 return List.of(
                     new PlaybookStep(
-                        "Investigate the incident",
-                        "Review the incident description, category, and available evidence."
+                        "Review Incident Details",
+                        "Examine the incident description, category, severity, affected resources, and available security alerts."
                     ),
                     new PlaybookStep(
-                        "Document findings",
-                        "Record the investigation results and notify the responsible analyst."
+                        "Collect Supporting Evidence",
+                        "Review relevant system logs, timestamps, user activity, and other available security information."
+                    ),
+                    new PlaybookStep(
+                        "Assess Potential Impact",
+                        "Identify affected resources and evaluate the possible security impact of the incident."
+                    ),
+                    new PlaybookStep(
+                        "Escalate for Security Review",
+                        "Share the collected evidence and investigation findings with the responsible security analyst."
+                    ),
+                    new PlaybookStep(
+                        "Document Investigation Results",
+                        "Record the investigation outcome, recommended actions, and current incident status."
                     )
                 );
         }

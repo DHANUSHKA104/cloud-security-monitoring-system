@@ -16,7 +16,7 @@ import {
   NotFound,
 } from '@/pages';
 import { ROUTES } from '@/constants/routes.constants';
-
+import Playbooks from '@/pages/Playbooks';
 export const routesConfig: RouteObject[] = [
   {
     path: '/',
@@ -64,6 +64,10 @@ export const routesConfig: RouteObject[] = [
             path: '/incidents/:id',
             element: <IncidentDetails />,
           },
+          {
+  path: ROUTES.PLAYBOOKS,
+  element: <Playbooks />,
+},
           {
             path: ROUTES.PROFILE,
             element: <Profile />,

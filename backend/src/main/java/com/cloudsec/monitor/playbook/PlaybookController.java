@@ -17,7 +17,7 @@ public class PlaybookController {
     }
 
     @GetMapping("/{category}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST', 'VIEWER')")
     public List<PlaybookStep> getPlaybook(
             @PathVariable String category) {
 
