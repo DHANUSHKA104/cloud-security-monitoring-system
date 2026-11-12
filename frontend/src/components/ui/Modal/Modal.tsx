@@ -1,3 +1,4 @@
+
 import React, { useEffect, ReactNode, useRef } from 'react';
 
 export interface ModalProps {
@@ -7,6 +8,7 @@ export interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
+  theme?: 'dark' | 'light';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -16,23 +18,27 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   footer,
   maxWidth = 'md',
+  theme = 'dark',
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const isDark = theme === 'dark';
 
   useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && open) {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
 
-    if (open) {
-      document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
-    }
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [open, onClose]);
@@ -46,25 +52,49 @@ export const Modal: React.FC<ModalProps> = ({
     xl: 'max-w-xl',
   };
 
+  const modalStyles = isDark
+    ? 'bg-slate-900 border-slate-700 text-slate-100'
+    : 'bg-white border-slate-200 text-slate-900';
+
+  const headerStyles = isDark
+    ? 'border-slate-700'
+    : 'border-slate-200';
+
+  const closeButtonStyles = isDark
+    ? 'text-slate-400 hover:text-white hover:bg-slate-800 focus-visible:ring-violet-400'
+    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-violet-500';
+
+  const footerStyles = isDark
+    ? 'border-slate-700 bg-slate-950/40'
+    : 'border-slate-200 bg-slate-50';
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/65 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
-        className={`w-full ${maxWidthStyles[maxWidth]} bg-gray-900 border border-gray-800 rounded-lg shadow-xl overflow-hidden transform transition-all`}
+        aria-labelledby="modal-title"
+        className={`w-full ${maxWidthStyles[maxWidth]} ${modalStyles} border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-100">{title}</h3>
+        {/* Header */}
+        <div className={`px-6 py-4 border-b flex items-center justify-between ${headerStyles}`}>
+          <h3
+            id="modal-title"
+            className="text-base font-semibold tracking-tight"
+          >
+            {title}
+          </h3>
+
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-200 transition-colors p-1"
             aria-label="Close modal"
+            className={`rounded-lg p-2 transition-colors focus:outline-none focus-visible:ring-2 ${closeButtonStyles}`}
           >
             <svg
               className="w-4 h-4"
@@ -81,9 +111,15 @@ export const Modal: React.FC<ModalProps> = ({
             </svg>
           </button>
         </div>
-        <div className="p-5 max-h-[75vh] overflow-y-auto">{children}</div>
+
+        {/* Content */}
+        <div className="p-6 max-h-[75vh] overflow-y-auto">
+          {children}
+        </div>
+
+        {/* Footer */}
         {footer && (
-          <div className="px-5 py-3 border-t border-gray-800 bg-gray-950/40 flex items-center justify-end gap-3">
+          <div className={`px-6 py-4 border-t flex items-center justify-end gap-3 ${footerStyles}`}>
             {footer}
           </div>
         )}
@@ -91,3 +127,5 @@ export const Modal: React.FC<ModalProps> = ({
     </div>
   );
 };
+
+export default Modal;

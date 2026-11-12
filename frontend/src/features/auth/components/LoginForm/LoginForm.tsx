@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
+
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -11,6 +13,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { authService } from '@/features/auth/services/authService';
 import { OtpVerification } from '@/features/auth/components/OtpVerification';
 import { User } from '@/types';
+import { AuthLayoutContext } from '@/layout/AuthLayout/AuthLayout';
 
 interface LoginResponse {
   accessToken?: string;
@@ -28,7 +31,6 @@ export const LoginForm: React.FC = () => {
   const [showMfa, setShowMfa] = useState(false);
   const [mfaToken, setMfaToken] = useState<string | null>(null);
 
-  // Reset Password Modal State
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetPassword, setResetPassword] = useState('');
@@ -39,6 +41,13 @@ export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
   const { addToast } = useAppStore();
   const { user, isAuthenticated, setSession, clearSession } = useAuthStore();
+  const { theme } = useOutletContext<AuthLayoutContext>();
+
+  const isDark = theme === 'dark';
+
+  const textPrimary = isDark ? 'text-white' : 'text-slate-900';
+  const textSecondary = isDark ? 'text-blue-100/65' : 'text-slate-600';
+  const borderColor = isDark ? 'border-white/10' : 'border-slate-200';
 
   const handleQuickFill = (role: 'ADMIN' | 'ANALYST') => {
     if (role === 'ADMIN') {
@@ -48,17 +57,24 @@ export const LoginForm: React.FC = () => {
       setEmail('alice.analyst@cloudsec.local');
       setPassword('Admin@CloudSec2026!');
     }
+    setError(null);
   };
 
   const handleDirectDemoLogin = async () => {
     handleQuickFill('ADMIN');
+
     try {
       setLoading(true);
       setError(null);
-      const res = await apiClient.post<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
-        email: 'admin@cloudsec.local',
-        password: 'Admin@CloudSec2026!',
-      });
+
+      const res = await apiClient.post<LoginResponse>(
+        API_ENDPOINTS.AUTH.LOGIN,
+        {
+          email: 'admin@cloudsec.local',
+          password: 'Admin@CloudSec2026!',
+        }
+      );
+
       if (res.user && res.accessToken) {
         setSession(res.user, res.accessToken, res.expiresIn);
         addToast({
@@ -80,22 +96,27 @@ export const LoginForm: React.FC = () => {
     setResetError(null);
 
     const targetEmail = resetEmail.trim().toLowerCase();
+
     if (!targetEmail || !targetEmail.includes('@')) {
       setResetError('Please enter a valid email address');
       return;
     }
+
     if (resetPassword.length < 8) {
       setResetError('Password must be at least 8 characters');
       return;
     }
+
     if (!/[A-Z]/.test(resetPassword)) {
       setResetError('Password must contain at least one capital letter (A-Z)');
       return;
     }
-    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~`]/.test(resetPassword)) {
-      setResetError('Password must contain at least one special character (!@#$...)');
+
+    if (!/[^A-Za-z0-9]/.test(resetPassword)) {
+      setResetError('Password must contain at least one special character');
       return;
     }
+
     if (resetPassword !== resetConfirmPassword) {
       setResetError('Passwords do not match');
       return;
@@ -103,6 +124,7 @@ export const LoginForm: React.FC = () => {
 
     try {
       setResetLoading(true);
+
       await authService.resetPassword({
         email: targetEmail,
         newPassword: resetPassword,
@@ -131,10 +153,11 @@ export const LoginForm: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    if (!email) {
+    if (!email.trim()) {
       setError('Please enter your full name or email address');
       return;
     }
+
     if (!password) {
       setError('Password is required');
       return;
@@ -142,10 +165,14 @@ export const LoginForm: React.FC = () => {
 
     try {
       setLoading(true);
-      const res = await apiClient.post<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
-        email: email.trim(),
-        password,
-      });
+
+      const res = await apiClient.post<LoginResponse>(
+        API_ENDPOINTS.AUTH.LOGIN,
+        {
+          email: email.trim(),
+          password,
+        }
+      );
 
       if (res.mfaRequired && res.mfaToken) {
         setMfaToken(res.mfaToken);
@@ -157,6 +184,7 @@ export const LoginForm: React.FC = () => {
       }
     } catch (err: unknown) {
       const apiErr = err as { message?: string; code?: string };
+
       if (apiErr.code === 'ACCOUNT_LOCKED') {
         setError(apiErr.message || 'Account locked, try again in 15 minutes.');
       } else {
@@ -167,15 +195,36 @@ export const LoginForm: React.FC = () => {
     }
   };
 
+  const fieldClass = isDark
+    ? 'bg-[#0b1530] border-blue-400/20 text-white placeholder:text-slate-500 focus:border-blue-400 focus:ring-blue-500/20'
+    : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500/20';
+
+  const secondaryButton = isDark
+    ? 'bg-white/5 border-white/10 text-blue-200 hover:bg-white/10'
+    : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200';
+
   if (showMfa) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
+        <div className="text-center space-y-2">
+          <div className="mx-auto w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-400/20 flex items-center justify-center text-2xl">
+            🔐
+          </div>
+          <h2 className={`text-2xl font-bold ${textPrimary}`}>
+            Verify your identity
+          </h2>
+          <p className={`text-sm ${textSecondary}`}>
+            Complete the additional security verification to continue.
+          </p>
+        </div>
+
         <OtpVerification mfaToken={mfaToken || undefined} />
+
         <div className="text-center">
           <button
             type="button"
             onClick={() => setShowMfa(false)}
-            className="text-xs text-sky-400 hover:text-sky-300 transition-colors"
+            className="text-sm text-blue-400 hover:text-cyan-400 transition-colors"
           >
             ← Back to Sign In
           </button>
@@ -186,89 +235,150 @@ export const LoginForm: React.FC = () => {
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form">
-        <div>
-          <h2 className="text-xl font-bold font-serif text-gray-100 tracking-tight">
-            Welcome back!
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-5"
+        data-testid="login-form"
+      >
+        {/* Heading */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500">
+              Secure Authentication
+            </span>
+          </div>
+
+          <h2 className={`text-3xl sm:text-4xl font-bold tracking-tight ${textPrimary}`}>
+            Welcome back<span className="text-blue-500">.</span>
           </h2>
-          <p className="text-xs text-purple-300/80 mt-1 font-light">
-            Where vigilant cloud defense meets serene clarity. Step into your command center.
+
+          <p className={`text-sm leading-relaxed ${textSecondary}`}>
+            Sign in to access your cloud security monitoring and incident
+            management dashboard.
           </p>
         </div>
 
+        {/* Active session */}
         {isAuthenticated && user ? (
-          <div className="p-3 bg-emerald-950/50 border border-emerald-800/60 rounded-lg text-xs text-emerald-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <span>Currently signed in as: <strong>{user.fullName}</strong></span>
-              <span className="text-[10px] font-mono uppercase bg-emerald-900/60 px-1.5 py-0.5 rounded text-emerald-300">{user.role}</span>
+          <div className={`rounded-2xl border border-emerald-500/30 p-4 space-y-3 ${
+            isDark ? 'bg-emerald-500/10' : 'bg-emerald-50'
+          }`}>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-emerald-600">
+                  Active Session
+                </p>
+                <p className={`text-xs mt-1 ${textSecondary}`}>
+                  Signed in as {user.fullName}
+                </p>
+              </div>
+
+              <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+                {user.role}
+              </span>
             </div>
-            <div className="flex items-center gap-2 pt-1 border-t border-emerald-900/40">
+
+            <div className={`flex items-center gap-3 pt-3 border-t ${
+              isDark ? 'border-emerald-500/20' : 'border-emerald-200'
+            }`}>
               <Link
                 to={ROUTES.DASHBOARD}
-                className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3 py-1 rounded transition-colors"
+                className="text-xs font-semibold text-emerald-600 hover:text-emerald-500"
               >
-                Continue to Dashboard &rarr;
+                Continue to Dashboard →
               </Link>
+
               <button
                 type="button"
                 onClick={() => clearSession()}
-                className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1 underline"
+                className={`text-xs ${textSecondary} hover:text-red-500`}
               >
                 Sign out
               </button>
             </div>
           </div>
         ) : (
-          <div className="p-3 bg-gradient-to-r from-blue-950/70 via-indigo-950/60 to-purple-950/70 border border-blue-800/60 rounded-lg flex items-center justify-between gap-3 shadow-md">
-            <div>
-              <div className="text-xs font-semibold text-blue-200">Already signed up or want instant access?</div>
-              <div className="text-[11px] text-blue-300/80">Enter command center directly as Administrator</div>
+          /* Demo account card */
+          <div className={`rounded-2xl border p-4 space-y-3 ${
+            isDark
+              ? 'bg-gradient-to-br from-blue-500/10 to-violet-500/10 border-blue-400/20'
+              : 'bg-gradient-to-br from-blue-50 to-violet-50 border-blue-100'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-xl shadow-lg shadow-blue-500/20">
+                🛡️
+              </div>
+
+              <div>
+                <p className={`text-sm font-bold ${textPrimary}`}>
+                  Explore CloudSec Demo
+                </p>
+                <p className={`text-xs mt-1 ${textSecondary}`}>
+                  Experience the platform using a demo administrator account.
+                </p>
+              </div>
             </div>
+
             <button
               type="button"
               onClick={handleDirectDemoLogin}
               disabled={loading}
-              className="text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded shadow transition-all whitespace-nowrap"
+              className="w-full rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:brightness-110 hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Continue to Dashboard &rarr;
+              {loading ? 'Connecting...' : 'Launch Demo Dashboard →'}
             </button>
           </div>
         )}
 
+        {/* Error */}
         {error && (
           <div
             role="alert"
-            className="p-3 bg-red-950/60 border border-red-800 text-red-300 text-xs rounded-md"
+            className={`flex items-start gap-2 p-3 rounded-xl border text-xs ${
+              isDark
+                ? 'bg-red-500/10 border-red-500/30 text-red-300'
+                : 'bg-red-50 border-red-200 text-red-700'
+            }`}
           >
-            {error}
+            <span className="text-base">⚠</span>
+            <span>{error}</span>
           </div>
         )}
 
-        <div className="space-y-3">
+        {/* Login fields */}
+        <div className="space-y-4">
           <Input
+          theme={theme}
             id="email-input"
             label="Full Name or Email Address"
             type="text"
-            placeholder="e.g., Alice Analyst or admin@cloudsec.local"
+            placeholder="Enter your name or email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="username"
             required
+            className={fieldClass}
           />
 
           <Input
+          theme={theme}
             id="password-input"
             label="Password"
             type="password"
-            placeholder="••••••••••••"
+            placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
             required
+            className={fieldClass}
           />
 
-          <div className="flex items-center justify-between text-xs pt-0.5">
-            <span className="text-[11px] text-gray-500">Forgot your password?</span>
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className={textSecondary}>
+              Forgot your password?
+            </span>
+
             <button
               type="button"
               onClick={() => {
@@ -276,102 +386,116 @@ export const LoginForm: React.FC = () => {
                 setResetError(null);
                 setResetModalOpen(true);
               }}
-              className="text-xs text-sky-400 hover:text-sky-300 font-medium underline transition-colors"
+              className="font-semibold text-blue-500 hover:text-violet-500 transition-colors"
             >
-              Reset Password
+              Reset Password →
             </button>
           </div>
         </div>
 
-        {/* Quick Fill Demo Helpers */}
-        <div className="flex items-center justify-between text-xs text-gray-400 pt-1">
-          <span className="text-[11px] text-gray-500">Quick Demo Fill:</span>
-          <div className="flex items-center gap-1.5">
+        {/* Demo quick fill */}
+        <div className={`flex flex-wrap items-center justify-between gap-2 pt-3 border-t ${borderColor}`}>
+          <span className={`text-xs font-medium ${textSecondary}`}>
+            Quick Demo Fill
+          </span>
+
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={() => handleQuickFill('ADMIN')}
-              className="text-[11px] px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-purple-300 border border-purple-900/40 font-mono transition-colors"
+              className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${secondaryButton}`}
             >
               Admin
             </button>
+
             <button
               type="button"
               onClick={() => handleQuickFill('ANALYST')}
-              className="text-[11px] px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-sky-300 border border-sky-900/40 font-mono transition-colors"
+              className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${secondaryButton}`}
             >
               Analyst
-            </button>
-            <button
-              type="button"
-              onClick={handleDirectDemoLogin}
-              className="text-[11px] px-2.5 py-0.5 rounded bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium shadow-sm transition-all"
-            >
-              Instant Enter &rarr;
             </button>
           </div>
         </div>
 
-        <Button type="submit" loading={loading} className="w-full">
-          Sign In
+        {/* Sign in */}
+        <Button
+          type="submit"
+          loading={loading}
+          className="w-full !rounded-xl !py-3 !bg-gradient-to-r !from-blue-600 !via-indigo-600 !to-violet-600 !text-white !shadow-lg !shadow-blue-600/20 hover:!brightness-110"
+        >
+          Sign In →
         </Button>
 
-        <div className="text-center text-xs text-gray-400 pt-3 border-t border-gray-800">
-          Don&apos;t have an account?{' '}
-          <Link to={ROUTES.SIGNUP} className="text-sky-400 hover:text-sky-300 font-medium underline">
-            Create new account (Sign Up)
+        {/* Signup link */}
+        <div className={`text-center text-xs pt-4 border-t ${borderColor} ${textSecondary}`}>
+          Don't have an account?{' '}
+          <Link
+            to={ROUTES.SIGNUP}
+            className="font-semibold text-blue-500 hover:text-violet-500 transition-colors"
+          >
+            Create an account
           </Link>
         </div>
       </form>
 
-      {/* Self-Service Password Reset Modal */}
+      {/* Password Reset Modal */}
       <Modal
         open={resetModalOpen}
         onClose={() => setResetModalOpen(false)}
         title="Reset Account Password"
         maxWidth="sm"
+        theme={theme}
       >
         <form onSubmit={handleResetPassword} className="space-y-4">
-          <p className="text-xs text-gray-400">
-            Enter your registered email and a new password to immediately restore and unlock your account.
+          <p className={`text-xs leading-relaxed ${textSecondary}`}>
+            Enter your registered email and a new password to restore and
+            unlock your account.
           </p>
 
           {resetError && (
-            <div className="p-3 bg-red-950/60 border border-red-800 text-red-300 text-xs rounded-md">
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs">
               {resetError}
             </div>
           )}
 
           <Input
+          theme={theme}
             id="reset-email"
             label="Email Address"
             type="email"
-            placeholder="e.g. dhanushka1042007@gmail.com"
+            placeholder="Enter your registered email"
             value={resetEmail}
             onChange={(e) => setResetEmail(e.target.value)}
             required
+            className={fieldClass}
           />
 
           <Input
+          theme={theme}
             id="reset-new-password"
-            label="New Password (min 8 chars, 1 uppercase, 1 special char)"
+            label="New Password"
             type="password"
-            placeholder="••••••••••••"
+            placeholder="Minimum 8 characters"
             value={resetPassword}
             onChange={(e) => setResetPassword(e.target.value)}
             required
+            className={fieldClass}
           />
 
           <Input
+          theme={theme}
             id="reset-confirm-password"
             label="Confirm New Password"
             type="password"
-            placeholder="••••••••••••"
+            placeholder="Confirm your new password"
             value={resetConfirmPassword}
             onChange={(e) => setResetConfirmPassword(e.target.value)}
             required
+            className={fieldClass}
           />
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-3">
             <Button
               type="button"
               variant="secondary"
@@ -380,6 +504,7 @@ export const LoginForm: React.FC = () => {
             >
               Cancel
             </Button>
+
             <Button
               type="submit"
               size="sm"
@@ -393,4 +518,5 @@ export const LoginForm: React.FC = () => {
     </>
   );
 };
+
 export default LoginForm;
