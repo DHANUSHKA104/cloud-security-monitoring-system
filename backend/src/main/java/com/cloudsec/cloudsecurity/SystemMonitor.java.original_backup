@@ -1,0 +1,93 @@
+﻿package com.cloudsecurity;
+
+import oshi.SystemInfo;
+import oshi.hardware.CentralProcessor;
+import oshi.hardware.GlobalMemory;
+
+import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.time.LocalDateTime;
+
+public class SystemMonitor {
+    private static final String DB_URL = "jdbc:sqlite:monitoring.db";
+
+    public static void main(String[] args) {
+        SystemInfo info = new SystemInfo();
+        CentralProcessor cpu = info.getHardware().getProcessor();
+        GlobalMemory memory = info.getHardware().getMemory();
+
+        String createTable = """
+            CREATE TABLE IF NOT EXISTS system_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recorded_at TEXT,
+                cpu_percent REAL,
+                ram_percent REAL,
+                disk_percent REAL,
+                status TEXT
+            )
+            """;
+
+        String insert = """
+            INSERT INTO system_metrics
+            (recorded_at, cpu_percent, ram_percent, disk_percent, status)
+            VALUES (?, ?, ?, ?, ?)
+            """;
+
+        try (Connection connection = DriverManager.getConnection(DB_URL);
+             Statement statement = connection.createStatement()) {
+
+            statement.execute(createTable);
+
+            try (PreparedStatement ps = connection.prepareStatement(insert)) {
+                System.out.println("System Monitoring Started");
+
+                for (int i = 1; i <= 5; i++) {
+                    double cpuPercent = cpu.getSystemCpuLoad(1000L) * 100.0;
+
+                    long totalRam = memory.getTotal();
+                    long usedRam = totalRam - memory.getAvailable();
+                    double ramPercent = totalRam == 0 ? 0 :
+                            (double) usedRam / totalRam * 100.0;
+
+                    File[] drives = File.listRoots();
+                    double diskPercent = 0;
+
+                    if (drives != null && drives.length > 0) {
+                        File drive = drives[0];
+                        long total = drive.getTotalSpace();
+                        if (total > 0) {
+                            diskPercent = (double)
+                                (total - drive.getUsableSpace()) / total * 100.0;
+                        }
+                    }
+
+                    String status = (cpuPercent >= 80 ||
+                            ramPercent >= 80 || diskPercent >= 90)
+                            ? "HIGH_USAGE" : "NORMAL";
+
+                    ps.setString(1, LocalDateTime.now().toString());
+                    ps.setDouble(2, cpuPercent);
+                    ps.setDouble(3, ramPercent);
+                    ps.setDouble(4, diskPercent);
+                    ps.setString(5, status);
+                    ps.executeUpdate();
+
+                    System.out.printf(
+                        "Reading %d | CPU %.2f%% | RAM %.2f%% | Disk %.2f%% | %s%n",
+                        i, cpuPercent, ramPercent, diskPercent, status);
+
+                    if (i < 5) Thread.sleep(4000);
+                }
+            }
+
+            System.out.println("Done! Records saved to monitoring.db");
+
+        } catch (Exception e) {
+            System.err.println("Monitoring failed: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+}
