@@ -4,3 +4,29 @@ dist-ssr
 *.local
 .env
 .env.*.local
+
+# Maven build target directory
+target/
+
+# SQLite Database generated at runtime
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Backup files
+*.backup*
+pom.xml.original_backup
+pom.xml.nested_backup
+
+# IDE and Editor configurations
+.idea/
+*.iml
+.vscode/
+*.ipr
+*.iws
+
+# OS-generated files
+Thumbs.db
+Desktop.ini
+.DS_Store
