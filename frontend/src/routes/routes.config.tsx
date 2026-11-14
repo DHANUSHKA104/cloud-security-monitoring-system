@@ -1,10 +1,14 @@
+
 import React from 'react';
 import { RouteObject } from 'react-router-dom';
+
 import { MainLayout } from '@/layout/MainLayout';
 import { AuthLayout } from '@/layout/AuthLayout';
 import { DashboardLayout } from '@/layout/DashboardLayout';
+
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
+
 import {
   Dashboard,
   Login,
@@ -17,6 +21,8 @@ import {
   Workflows,
   NotFound,
 } from '@/pages';
+
+import Playbooks from '@/pages/Playbooks';
 import { ROUTES } from '@/constants/routes.constants';
 
 export const routesConfig: RouteObject[] = [
@@ -42,6 +48,7 @@ export const routesConfig: RouteObject[] = [
           },
         ],
       },
+
       // Protected App routes
       {
         element: (
@@ -67,6 +74,10 @@ export const routesConfig: RouteObject[] = [
             element: <IncidentDetails />,
           },
           {
+            path: ROUTES.PLAYBOOKS,
+            element: <Playbooks />,
+          },
+          {
             path: ROUTES.ASSETS,
             element: <Assets />,
           },
@@ -88,6 +99,7 @@ export const routesConfig: RouteObject[] = [
           },
         ],
       },
+
       // 404 Catch-all
       {
         path: ROUTES.NOT_FOUND,

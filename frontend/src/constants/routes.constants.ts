@@ -4,6 +4,7 @@ export const ROUTES = {
   SIGNUP: '/signup',
   DASHBOARD: '/dashboard',
   INCIDENTS: '/incidents',
+  PLAYBOOKS: '/playbooks',
   INCIDENT_DETAILS: (id: string = ':id') => `/incidents/${id}`,
   ASSETS: '/assets',
   ASSET_DETAILS: (id: string = ':id') => `/assets/${id}`,

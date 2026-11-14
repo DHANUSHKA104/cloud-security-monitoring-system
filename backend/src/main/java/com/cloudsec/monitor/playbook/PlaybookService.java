@@ -1,182 +1,100 @@
+
 package com.cloudsec.monitor.playbook;
 
-import com.cloudsec.monitor.common.exception.ApiException;
-import com.cloudsec.monitor.common.exception.ErrorCode;
-import com.cloudsec.monitor.incident.Incident;
-import com.cloudsec.monitor.incident.IncidentEvent;
-import com.cloudsec.monitor.incident.IncidentEventRepository;
-import com.cloudsec.monitor.incident.IncidentRepository;
-import com.cloudsec.monitor.playbook.dto.*;
-import com.cloudsec.monitor.user.User;
-import com.cloudsec.monitor.user.UserRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.List;
 
 @Service
 public class PlaybookService {
 
-    private static final Logger log = LoggerFactory.getLogger(PlaybookService.class);
+    public List<PlaybookStep> getPlaybook(String category) {
 
-    private final PlaybookRepository playbookRepository;
-    private final PlaybookStepRepository playbookStepRepository;
-    private final IncidentPlaybookExecutionRepository executionRepository;
-    private final IncidentRepository incidentRepository;
-    private final IncidentEventRepository incidentEventRepository;
-    private final UserRepository userRepository;
-
-    public PlaybookService(
-            PlaybookRepository playbookRepository,
-            PlaybookStepRepository playbookStepRepository,
-            IncidentPlaybookExecutionRepository executionRepository,
-            IncidentRepository incidentRepository,
-            IncidentEventRepository incidentEventRepository,
-            UserRepository userRepository
-    ) {
-        this.playbookRepository = playbookRepository;
-        this.playbookStepRepository = playbookStepRepository;
-        this.executionRepository = executionRepository;
-        this.incidentRepository = incidentRepository;
-        this.incidentEventRepository = incidentEventRepository;
-        this.userRepository = userRepository;
-    }
-
-    @Transactional(readOnly = true)
-    public List<PlaybookResponse> getAllPlaybooks() {
-        List<Playbook> playbooks = playbookRepository.findByActiveTrue();
-        for (Playbook pb : playbooks) {
-            pb.setSteps(playbookStepRepository.findByPlaybookIdOrderByStepOrderAsc(pb.getId()));
-        }
-        return playbooks.stream().map(PlaybookResponse::fromEntity).collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public PlaybookResponse getPlaybookByCategory(String category) {
-        Playbook pb = playbookRepository.findByCategoryAndActiveTrue(category)
-                .or(() -> playbookRepository.findByCategoryAndActiveTrue("OTHER"))
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No playbook found for category: " + category));
-
-        pb.setSteps(playbookStepRepository.findByPlaybookIdOrderByStepOrderAsc(pb.getId()));
-        return PlaybookResponse.fromEntity(pb);
-    }
-
-    @Transactional(readOnly = true)
-    public IncidentPlaybookStatusResponse getPlaybookForIncident(UUID incidentId) {
-        Incident incident = incidentRepository.findById(incidentId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Incident not found with ID: " + incidentId));
-
-        Playbook pb = playbookRepository.findByCategoryAndActiveTrue(incident.getCategory())
-                .or(() -> playbookRepository.findByCategoryAndActiveTrue("OTHER"))
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No response playbook configured for category: " + incident.getCategory()));
-
-        List<PlaybookStep> steps = playbookStepRepository.findByPlaybookIdOrderByStepOrderAsc(pb.getId());
-        List<IncidentPlaybookExecution> executions = executionRepository.findByIncidentId(incidentId);
-
-        Map<UUID, IncidentPlaybookExecution> executionMap = executions.stream()
-                .collect(Collectors.toMap(IncidentPlaybookExecution::getStepId, e -> e, (e1, e2) -> e1));
-
-        IncidentPlaybookStatusResponse response = new IncidentPlaybookStatusResponse();
-        response.setIncidentId(incidentId);
-        response.setPlaybookId(pb.getId());
-        response.setPlaybookCode(pb.getCode());
-        response.setPlaybookTitle(pb.getTitle());
-        response.setCategory(pb.getCategory());
-        response.setTotalSteps(steps.size());
-
-        int completed = 0;
-        List<IncidentPlaybookStatusResponse.StepExecutionDetail> details = new ArrayList<>();
-        for (PlaybookStep step : steps) {
-            IncidentPlaybookStatusResponse.StepExecutionDetail d = new IncidentPlaybookStatusResponse.StepExecutionDetail();
-            d.setStepId(step.getId());
-            d.setStepOrder(step.getStepOrder());
-            d.setName(step.getName());
-            d.setInstructions(step.getInstructions());
-            d.setActionType(step.getActionType());
-            d.setRiskLevel(step.getRiskLevel());
-
-            IncidentPlaybookExecution exec = executionMap.get(step.getId());
-            if (exec != null) {
-                d.setExecuted(true);
-                d.setStatus(exec.getStatus());
-                d.setNotes(exec.getNotes());
-                d.setExecutedAt(exec.getExecutedAt());
-                if (exec.getExecutedBy() != null) {
-                    d.setExecutedByName(exec.getExecutedBy().getFullName());
-                }
-                if ("COMPLETED".equalsIgnoreCase(exec.getStatus())) {
-                    completed++;
-                }
-            } else {
-                d.setExecuted(false);
-                d.setStatus("PENDING");
-            }
-            details.add(d);
+        if (category == null) {
+            category = "";
         }
 
-        response.setCompletedSteps(completed);
-        response.setSteps(details);
-        return response;
-    }
+        switch (category.toUpperCase()) {
 
-    @Transactional
-    public ExecutePlaybookStepResponse executeStep(
-            UUID incidentId,
-            UUID stepId,
-            ExecutePlaybookStepRequest req,
-            UUID userId
-    ) {
-        Incident incident = incidentRepository.findById(incidentId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Incident not found with ID: " + incidentId));
+            case "AUTH_ATTACK":
+                return List.of(
+                    new PlaybookStep(
+                        "Review Failed Login Attempts",
+                        "Examine authentication logs for repeated failed login attempts, unusual login times, and suspicious source IP addresses."
+                    ),
+                    new PlaybookStep(
+                        "Identify the Affected Account",
+                        "Check the account involved in the activity and review available user, device, and login details."
+                    ),
+                    new PlaybookStep(
+                        "Check for Successful Logins",
+                        "Determine whether any successful login occurred after repeated failed attempts and identify potentially unauthorized access."
+                    ),
+                    new PlaybookStep(
+                        "Verify Suspicious Activity",
+                        "Compare the login activity with expected user behavior and verify unusual activity with the account owner or responsible team."
+                    ),
+                    new PlaybookStep(
+                        "Escalate the Security Incident",
+                        "Share the investigation findings with the security analyst for review and approval of appropriate response actions."
+                    ),
+                    new PlaybookStep(
+                        "Document Investigation Results",
+                        "Record suspicious IP addresses, affected accounts, timestamps, evidence, and the final investigation status."
+                    )
+                );
 
-        PlaybookStep step = playbookStepRepository.findById(stepId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Playbook step not found with ID: " + stepId));
+            case "NETWORK_INTRUSION":
+                return List.of(
+                    new PlaybookStep(
+                        "Review Network Security Alerts",
+                        "Examine firewall logs, network monitoring alerts, suspicious connections, and unusual traffic patterns."
+                    ),
+                    new PlaybookStep(
+                        "Identify Source and Destination",
+                        "Inspect source and destination IP addresses, ports, protocols, and connection timestamps."
+                    ),
+                    new PlaybookStep(
+                        "Identify the Affected Asset",
+                        "Determine which server, endpoint, or network resource may be involved in the suspicious activity."
+                    ),
+                    new PlaybookStep(
+                        "Analyze Related Network Events",
+                        "Correlate available network logs and related security events to understand the possible scope of the intrusion."
+                    ),
+                    new PlaybookStep(
+                        "Assess Risk and Escalate",
+                        "Evaluate the potential impact and share the findings with the security analyst for appropriate response decisions."
+                    ),
+                    new PlaybookStep(
+                        "Document Investigation Results",
+                        "Record affected assets, suspicious addresses, observed traffic, collected evidence, and investigation status."
+                    )
+                );
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found with ID: " + userId));
-
-        Optional<IncidentPlaybookExecution> existing = executionRepository.findByIncidentIdAndStepId(incidentId, stepId);
-        IncidentPlaybookExecution exec;
-        if (existing.isPresent()) {
-            exec = existing.get();
-            exec.setStatus(req.getStatus() != null ? req.getStatus() : "COMPLETED");
-            exec.setNotes(req.getNotes());
-            exec.setExecutedBy(user);
-            exec.setExecutedAt(Instant.now());
-        } else {
-            exec = new IncidentPlaybookExecution(
-                    incidentId,
-                    step.getPlaybook().getId(),
-                    stepId,
-                    user,
-                    req.getStatus() != null ? req.getStatus() : "COMPLETED",
-                    req.getNotes()
-            );
+            default:
+                return List.of(
+                    new PlaybookStep(
+                        "Review Incident Details",
+                        "Examine the incident description, category, severity, affected resources, and available security alerts."
+                    ),
+                    new PlaybookStep(
+                        "Collect Supporting Evidence",
+                        "Review relevant system logs, timestamps, user activity, and other available security information."
+                    ),
+                    new PlaybookStep(
+                        "Assess Potential Impact",
+                        "Identify affected resources and evaluate the possible security impact of the incident."
+                    ),
+                    new PlaybookStep(
+                        "Escalate for Security Review",
+                        "Share the collected evidence and investigation findings with the responsible security analyst."
+                    ),
+                    new PlaybookStep(
+                        "Document Investigation Results",
+                        "Record the investigation outcome, recommended actions, and current incident status."
+                    )
+                );
         }
-
-        IncidentPlaybookExecution saved = executionRepository.save(exec);
-
-        // Record audit event in incident timeline
-        String details = String.format(
-                "{\"stepOrder\": %d, \"stepName\": \"%s\", \"actionType\": \"%s\", \"status\": \"%s\", \"notes\": \"%s\"}",
-                step.getStepOrder(),
-                step.getName().replace("\"", "\\\""),
-                step.getActionType(),
-                saved.getStatus(),
-                saved.getNotes() != null ? saved.getNotes().replace("\"", "\\\"") : ""
-        );
-        incidentEventRepository.save(new IncidentEvent(
-                incident,
-                "PLAYBOOK_STEP_EXECUTED",
-                user,
-                details
-        ));
-
-        log.info("Playbook step {} for incident {} executed with status {}", step.getName(), incident.getCode(), saved.getStatus());
-        return ExecutePlaybookStepResponse.fromEntity(saved);
     }
 }

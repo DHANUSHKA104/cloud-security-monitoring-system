@@ -1,13 +1,10 @@
 package com.cloudsec.monitor.playbook;
 
 import jakarta.persistence.*;
-import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "playbook_steps", uniqueConstraints = {
-        @UniqueConstraint(name = "uq_playbook_step_order", columnNames = {"playbook_id", "step_order"})
-})
+@Table(name = "playbook_steps")
 public class PlaybookStep {
 
     @Id
@@ -21,38 +18,29 @@ public class PlaybookStep {
     @Column(name = "step_order", nullable = false)
     private int stepOrder;
 
-    @Column(nullable = false, length = 150)
+    @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String instructions;
 
-    @Column(name = "action_type", nullable = false, length = 30)
-    private String actionType = "MANUAL";
+    @Column(name = "action_type")
+    private String actionType;
 
-    @Column(name = "risk_level", nullable = false, length = 20)
-    private String riskLevel = "LOW";
+    @Column(name = "risk_level")
+    private String riskLevel;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    @Transient
+    private String status = "PENDING";
 
     public PlaybookStep() {
     }
 
-    public PlaybookStep(Playbook playbook, int stepOrder, String name, String instructions, String actionType, String riskLevel) {
-        this.playbook = playbook;
-        this.stepOrder = stepOrder;
-        this.name = name;
-        this.instructions = instructions;
-        this.actionType = actionType != null ? actionType : "MANUAL";
-        this.riskLevel = riskLevel != null ? riskLevel : "LOW";
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
-        }
+    // Compatibility constructor for existing PlaybookService
+    public PlaybookStep(String title, String description) {
+        this.name = title;
+        this.instructions = description;
+        this.status = "PENDING";
     }
 
     public UUID getId() {
@@ -111,11 +99,28 @@ public class PlaybookStep {
         this.riskLevel = riskLevel;
     }
 
-    public Instant getCreatedAt() {
-        return createdAt;
+    // Backward compatibility with existing execution code
+    public String getTitle() {
+        return name;
     }
 
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
+    public void setTitle(String title) {
+        this.name = title;
+    }
+
+    public String getDescription() {
+        return instructions;
+    }
+
+    public void setDescription(String description) {
+        this.instructions = description;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

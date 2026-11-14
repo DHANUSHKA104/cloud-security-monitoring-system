@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,6 +31,21 @@ export const Sidebar: React.FC = () => {
       ),
     },
     {
+      label: 'Playbook Automation',
+      path: ROUTES.PLAYBOOKS,
+      roles: ['ADMIN', 'ANALYST', 'VIEWER'],
+      icon: (
+        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 12h6m-6 4h6"
+          />
+        </svg>
+      ),
+    },
+    {
       label: 'Asset Inventory',
       path: ROUTES.ASSETS,
       roles: ['ADMIN', 'ANALYST', 'VIEWER'],
@@ -52,7 +68,7 @@ export const Sidebar: React.FC = () => {
     {
       label: 'User Management',
       path: ROUTES.USERS,
-      roles: ['ADMIN'], // Admin only
+      roles: ['ADMIN'],
       icon: (
         <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -80,14 +96,18 @@ export const Sidebar: React.FC = () => {
       {/* Mobile backdrop */}
       <div
         className={`fixed inset-0 z-40 bg-black/60 lg:hidden transition-opacity ${
-          sidebarCollapsed ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          sidebarCollapsed
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setSidebarCollapsed(false)}
       />
 
       <aside
         className={`fixed lg:static top-0 bottom-0 left-0 z-40 w-60 bg-[#0b0916] border-r border-purple-900/25 flex flex-col transition-transform duration-200 ease-in-out ${
-          sidebarCollapsed ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          sidebarCollapsed
+            ? 'translate-x-0'
+            : '-translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Brand */}
@@ -133,4 +153,5 @@ export const Sidebar: React.FC = () => {
     </>
   );
 };
+
 export default Sidebar;
