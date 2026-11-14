@@ -3,7 +3,6 @@ package com.cloudsec.monitor.user;
 import com.cloudsec.monitor.auth.dto.UserResponse;
 import com.cloudsec.monitor.common.exception.ApiException;
 import com.cloudsec.monitor.common.exception.ErrorCode;
-
 import com.cloudsec.monitor.common.dto.PageResponse;
 import com.cloudsec.monitor.user.dto.CreateUserRequest;
 import com.cloudsec.monitor.user.dto.UpdateUserRequest;
@@ -18,11 +17,16 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "createdAt", "updatedAt", "fullName", "email", "role", "active", "department"
+    );
 
     private final UserService userService;
 
@@ -41,7 +45,11 @@ public class UserController {
             @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
         String[] sortParts = sort.split(",");
-        String sortProp = sortParts[0];
+        String sortProp = sortParts[0].trim();
+        if (!ALLOWED_SORT_FIELDS.contains(sortProp)) {
+            sortProp = "createdAt";
+        }
+
         Sort.Direction direction = sortParts.length > 1 && sortParts[1].equalsIgnoreCase("asc")
                 ? Sort.Direction.ASC
                 : Sort.Direction.DESC;
@@ -86,4 +94,3 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 }
-

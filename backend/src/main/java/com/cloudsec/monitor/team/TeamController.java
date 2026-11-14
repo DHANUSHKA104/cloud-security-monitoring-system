@@ -25,6 +25,11 @@ public class TeamController {
         return ResponseEntity.ok(teamService.getTeams());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<TeamResponse> getTeamById(@PathVariable UUID id) {
+        return ResponseEntity.ok(teamService.getTeamById(id));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TeamResponse> createTeam(@Valid @RequestBody CreateTeamRequest request) {
@@ -44,6 +49,16 @@ public class TeamController {
     @GetMapping("/{id}/members")
     public ResponseEntity<List<TeamMemberResponse>> getTeamMembers(@PathVariable UUID id) {
         return ResponseEntity.ok(teamService.getTeamMembers(id));
+    }
+
+    @PostMapping("/{teamId}/members")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> addTeamMember(
+            @PathVariable UUID teamId,
+            @Valid @RequestBody AddTeamMemberRequest request
+    ) {
+        teamService.setTeamMember(teamId, request.getUserId(), request.getTeamRole());
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PutMapping("/{id}/members/{userId}")

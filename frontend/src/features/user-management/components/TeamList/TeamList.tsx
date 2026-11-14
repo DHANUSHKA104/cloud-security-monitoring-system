@@ -1,14 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { apiClient } from '@/services/api/apiClient';
 import { useAppStore } from '@/store/useAppStore';
+import { TeamForm } from '../TeamForm';
 
 interface Team {
   id: string;
   name: string;
   description?: string;
+  leadId?: string;
+  leadName?: string;
+  memberCount?: number;
 }
 
 interface TeamMember {
@@ -39,11 +42,9 @@ export const TeamList: React.FC = () => {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
 
-  // Create Team modal
-  const [createTeamOpen, setCreateTeamOpen] = useState(false);
-  const [teamName, setTeamName] = useState('');
-  const [teamDesc, setTeamDesc] = useState('');
-  const [createLoading, setCreateLoading] = useState(false);
+  // Team Form Modal (Create & Edit)
+  const [teamFormOpen, setTeamFormOpen] = useState(false);
+  const [teamToEdit, setTeamToEdit] = useState<Team | null>(null);
 
   // Add Member modal
   const [addMemberOpen, setAddMemberOpen] = useState(false);
@@ -60,8 +61,12 @@ export const TeamList: React.FC = () => {
       setError(null);
       const res = await apiClient.get<Team[]>('/api/teams');
       setTeams(res || []);
-      if (res && res.length > 0 && !selectedTeam) {
-        setSelectedTeam(res[0]);
+      if (res && res.length > 0) {
+        setSelectedTeam((curr) => {
+          if (!curr) return res[0];
+          const found = res.find((t) => t.id === curr.id);
+          return found || res[0];
+        });
       }
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
@@ -69,7 +74,7 @@ export const TeamList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedTeam]);
+  }, []);
 
   useEffect(() => {
     fetchTeams();
@@ -99,37 +104,6 @@ export const TeamList: React.FC = () => {
     loadMembers();
   }, [selectedTeam, addToast]);
 
-  const handleCreateTeam = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!teamName.trim()) return;
-
-    try {
-      setCreateLoading(true);
-      const created = await apiClient.post<Team>('/api/teams', {
-        name: teamName.trim(),
-        description: teamDesc.trim() || undefined,
-      });
-
-      addToast({
-        type: 'success',
-        message: `Team "${created.name}" created`,
-      });
-      setCreateTeamOpen(false);
-      setTeamName('');
-      setTeamDesc('');
-      setSelectedTeam(created);
-      fetchTeams();
-    } catch (err: unknown) {
-      const apiErr = err as { message?: string };
-      addToast({
-        type: 'error',
-        message: apiErr.message || 'Failed to create team',
-      });
-    } finally {
-      setCreateLoading(false);
-    }
-  };
-
   const openAddMemberModal = async () => {
     try {
       setAddMemberOpen(true);
@@ -150,7 +124,8 @@ export const TeamList: React.FC = () => {
 
     try {
       setAddingMember(true);
-      await apiClient.put(`/api/teams/${selectedTeam.id}/members/${selectedUserId}`, {
+      await apiClient.post(`/api/teams/${selectedTeam.id}/members`, {
+        userId: selectedUserId,
         teamRole: selectedMemberRole,
       });
 
@@ -163,6 +138,7 @@ export const TeamList: React.FC = () => {
       // Refresh members
       const updated = await apiClient.get<TeamMember[]>(`/api/teams/${selectedTeam.id}/members`);
       setMembers(updated || []);
+      fetchTeams();
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
       addToast({
@@ -183,6 +159,7 @@ export const TeamList: React.FC = () => {
         message: `Removed ${name} from ${selectedTeam.name}`,
       });
       setMembers((prev) => prev.filter((m) => m.userId !== userId));
+      fetchTeams();
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
       addToast({
@@ -202,7 +179,13 @@ export const TeamList: React.FC = () => {
             Define specialized SOC response squads and designate squad leads
           </p>
         </div>
-        <Button onClick={() => setCreateTeamOpen(true)} size="sm">
+        <Button
+          onClick={() => {
+            setTeamToEdit(null);
+            setTeamFormOpen(true);
+          }}
+          size="sm"
+        >
           + New Team
         </Button>
       </div>
@@ -238,7 +221,17 @@ export const TeamList: React.FC = () => {
                       : 'bg-gray-900 border-gray-800 text-gray-300 hover:border-gray-700'
                   }`}
                 >
-                  <div className="font-medium text-xs text-gray-100">{t.name}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-xs text-gray-100">{t.name}</span>
+                    <span className="text-[10px] text-gray-400 font-mono">
+                      {t.memberCount || 0} mbrs
+                    </span>
+                  </div>
+                  {t.leadName && (
+                    <div className="text-[11px] text-amber-400/90 mt-1">
+                      Lead: {t.leadName}
+                    </div>
+                  )}
                   {t.description && (
                     <div className="text-[11px] text-gray-400 mt-1 line-clamp-2">
                       {t.description}
@@ -255,23 +248,43 @@ export const TeamList: React.FC = () => {
               <>
                 <div className="flex items-center justify-between pb-3 border-b border-gray-800">
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-100">
-                      {selectedTeam.name} — Members
+                    <h3 className="text-sm font-semibold text-gray-100 flex items-center gap-2">
+                      {selectedTeam.name}
+                      <span className="text-xs font-normal text-gray-400">
+                        ({members.length} operators)
+                      </span>
                     </h3>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {selectedTeam.description || 'No description provided.'}
                     </p>
+                    {selectedTeam.leadName && (
+                      <p className="text-xs text-amber-400/90 mt-1">
+                        Squad Leads: {selectedTeam.leadName}
+                      </p>
+                    )}
                   </div>
-                  <Button onClick={openAddMemberModal} size="sm" variant="secondary">
-                    + Add Member
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => {
+                        setTeamToEdit(selectedTeam);
+                        setTeamFormOpen(true);
+                      }}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      Edit Team
+                    </Button>
+                    <Button onClick={openAddMemberModal} size="sm" variant="secondary">
+                      + Add Member
+                    </Button>
+                  </div>
                 </div>
 
                 {loadingMembers ? (
                   <div className="py-12 text-center text-xs text-gray-400">Loading members...</div>
                 ) : members.length === 0 ? (
                   <div className="py-12 text-center text-xs text-gray-500">
-                    No analysts assigned to this team yet.
+                    No analysts assigned to this team yet. Click &quot;+ Add Member&quot; to assign operators.
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -318,82 +331,40 @@ export const TeamList: React.FC = () => {
                 )}
               </>
             ) : (
-              <div className="py-16 text-center text-xs text-gray-500">
-                Select a team on the left to review members.
+              <div className="py-16 text-center text-xs text-gray-400">
+                Select a team on the left to inspect squad members.
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Create Team Modal */}
-      <Modal
-        open={createTeamOpen}
-        onClose={() => setCreateTeamOpen(false)}
-        title="Form New Security Team"
-      >
-        <div className="text-xs text-gray-400 mb-3">
-          Create a functional security operations unit (e.g., Cloud SOC, Threat Intel, Blue Team).
-        </div>
-        <form onSubmit={handleCreateTeam} className="space-y-3">
-          <Input
-            id="team-name"
-            label="Team Name"
-            placeholder="Cloud Incident Response Squad"
-            value={teamName}
-            onChange={(e) => setTeamName(e.target.value)}
-            required
-          />
-
-          <div>
-            <label htmlFor="team-desc" className="block text-xs font-medium text-gray-300 mb-1">
-              Description / Responsibilities
-            </label>
-            <textarea
-              id="team-desc"
-              rows={3}
-              value={teamDesc}
-              onChange={(e) => setTeamDesc(e.target.value)}
-              placeholder="Primary responders for AWS/Azure cloud security events..."
-              className="w-full bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-gray-800">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setCreateTeamOpen(false)}
-              disabled={createLoading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" loading={createLoading}>
-              Create Team
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Team Form Modal (Create and Edit) */}
+      <TeamForm
+        isOpen={teamFormOpen}
+        onClose={() => {
+          setTeamFormOpen(false);
+          setTeamToEdit(null);
+        }}
+        onSuccess={fetchTeams}
+        teamToEdit={teamToEdit}
+      />
 
       {/* Add Member Modal */}
       <Modal
         open={addMemberOpen}
         onClose={() => setAddMemberOpen(false)}
-        title={`Add Member to ${selectedTeam?.name || ''}`}
+        title={`Assign Member to ${selectedTeam?.name || 'Team'}`}
+        maxWidth="md"
       >
-        <div className="text-xs text-gray-400 mb-3">
-          Select an analyst and designate their squad responsibility.
-        </div>
-        <form onSubmit={handleAddMember} className="space-y-3">
+        <form onSubmit={handleAddMember} className="space-y-4">
           <div>
-            <label htmlFor="select-user" className="block text-xs font-medium text-gray-300 mb-1">
-              Select Operator
-            </label>
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Select Operator</label>
             <select
-              id="select-user"
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-800 rounded px-2.5 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              required
             >
               {allUsers.map((u) => (
                 <option key={u.id} value={u.id}>
@@ -404,31 +375,31 @@ export const TeamList: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="select-team-role" className="block text-xs font-medium text-gray-300 mb-1">
-              Squad Role
-            </label>
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Squad Role</label>
             <select
-              id="select-team-role"
               value={selectedMemberRole}
               onChange={(e) => setSelectedMemberRole(e.target.value as 'LEAD' | 'MEMBER')}
-              className="w-full bg-gray-950 border border-gray-800 rounded px-2.5 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             >
-              <option value="MEMBER">MEMBER</option>
-              <option value="LEAD">LEAD (Shift Escalation Target)</option>
+              <option value="MEMBER">MEMBER (Standard Squad Operator)</option>
+              <option value="LEAD">LEAD (Squad Lead / Escalation Point)</option>
             </select>
+            <p className="text-[10px] text-gray-400 mt-1">
+              Teams can have multiple Leads. Assigning a new Lead will not demote existing leads.
+            </p>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-gray-800">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-800">
             <Button
-              type="button"
               variant="secondary"
+              type="button"
               onClick={() => setAddMemberOpen(false)}
               disabled={addingMember}
             >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" loading={addingMember}>
-              Assign Member
+            <Button type="submit" disabled={addingMember || !selectedUserId}>
+              {addingMember ? 'Assigning...' : 'Add Member'}
             </Button>
           </div>
         </form>
@@ -436,4 +407,5 @@ export const TeamList: React.FC = () => {
     </div>
   );
 };
+
 export default TeamList;

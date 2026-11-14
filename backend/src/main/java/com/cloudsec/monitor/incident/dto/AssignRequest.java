@@ -1,5 +1,6 @@
 package com.cloudsec.monitor.incident.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -10,14 +11,15 @@ public class AssignRequest {
     @NotNull(message = "Assignee ID is required")
     private UUID assigneeId;
 
-    @Size(max = 500, message = "Reason cannot exceed 500 characters")
-    private String reason;
+    @Size(max = 500, message = "Note cannot exceed 500 characters")
+    @JsonAlias({"reason"})
+    private String note;
 
     public AssignRequest() {}
 
-    public AssignRequest(UUID assigneeId, String reason) {
+    public AssignRequest(UUID assigneeId, String note) {
         this.assigneeId = assigneeId;
-        this.reason = reason;
+        this.note = note;
     }
 
     public UUID getAssigneeId() {
@@ -28,11 +30,19 @@ public class AssignRequest {
         this.assigneeId = assigneeId;
     }
 
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+
     public String getReason() {
-        return reason;
+        return note;
     }
 
     public void setReason(String reason) {
-        this.reason = reason;
+        this.note = reason;
     }
 }

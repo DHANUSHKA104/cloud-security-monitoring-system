@@ -18,13 +18,12 @@ interface IncidentFormProps {
 }
 
 const CATEGORIES = [
-  { value: 'AUTH_ATTACK', label: 'Authentication & Credential Stuffing' },
-  { value: 'AWS_SECURITY', label: 'AWS IAM / Security Group Drift' },
-  { value: 'KUBERNETES', label: 'Kubernetes Pod Escape / RBAC Abuse' },
-  { value: 'PHISHING', label: 'Phishing Campaign / BEC' },
-  { value: 'MALWARE', label: 'Ransomware & Malware Artifact' },
-  { value: 'DATA_EXFILTRATION', label: 'Data Exfiltration / S3 Egress Spike' },
-  { value: 'CONFIG_DRIFT', label: 'Cloud Misconfiguration / Policy Breach' },
+  { value: 'AUTH_ATTACK', label: 'AUTH_ATTACK — Authentication & Credential Stuffing' },
+  { value: 'MALWARE', label: 'MALWARE — Ransomware & Malware Artifacts' },
+  { value: 'DATA_EXPOSURE', label: 'DATA_EXPOSURE — Data Exfiltration & S3 Egress' },
+  { value: 'NETWORK_INTRUSION', label: 'NETWORK_INTRUSION — Network Intrusion & C2 Activity' },
+  { value: 'POLICY_VIOLATION', label: 'POLICY_VIOLATION — Compliance & Policy Violation' },
+  { value: 'CLOUD_MISCONFIG', label: 'CLOUD_MISCONFIG — AWS / Cloud IAM Misconfiguration' },
 ];
 
 export const IncidentForm: React.FC<IncidentFormProps> = ({
@@ -138,9 +137,9 @@ export const IncidentForm: React.FC<IncidentFormProps> = ({
               onChange={(e) => setPriority(e.target.value as Priority)}
               className="w-full bg-gray-950 border border-gray-800 rounded px-2.5 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             >
-              <option value="P1">P1 - Critical (30 min SLA)</option>
-              <option value="P2">P2 - High (2 hr SLA)</option>
-              <option value="P3">P3 - Medium (8 hr SLA)</option>
+              <option value="P1">P1 - Critical (15 min SLA)</option>
+              <option value="P2">P2 - High (60 min SLA)</option>
+              <option value="P3">P3 - Medium (4 hr SLA)</option>
               <option value="P4">P4 - Low (24 hr SLA)</option>
             </select>
           </div>

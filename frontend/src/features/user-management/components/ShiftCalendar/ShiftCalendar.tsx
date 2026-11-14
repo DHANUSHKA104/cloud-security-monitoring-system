@@ -39,6 +39,22 @@ interface HandoverResponse {
   templatedText: string;
 }
 
+interface ShiftHandoverResult {
+  shiftId: string;
+  analystId: string;
+  analystName: string;
+  handoverTime: string;
+  notes: string;
+  pendingIncidentCount: number;
+  p1Count: number;
+  p2Count: number;
+  p3Count: number;
+  p4Count: number;
+  atRiskCount: number;
+  resolvedLast8Hours: number;
+  summary: string;
+}
+
 interface PageResponse<T> {
   content: T[];
 }
@@ -62,6 +78,13 @@ export const ShiftCalendar: React.FC = () => {
   const [handoverModalOpen, setHandoverModalOpen] = useState(false);
   const [handoverData, setHandoverData] = useState<HandoverResponse | null>(null);
   const [handoverLoading, setHandoverLoading] = useState(false);
+
+  // Shift-Specific Handover Execution Modal
+  const [executeModalOpen, setExecuteModalOpen] = useState(false);
+  const [shiftToHandover, setShiftToHandover] = useState<Shift | null>(null);
+  const [handoverNotes, setHandoverNotes] = useState('');
+  const [executingHandover, setExecutingHandover] = useState(false);
+  const [handoverExecutionResult, setHandoverExecutionResult] = useState<ShiftHandoverResult | null>(null);
 
   const { addToast } = useAppStore();
 
@@ -92,7 +115,6 @@ export const ShiftCalendar: React.FC = () => {
       setScheduleModalOpen(true);
       setScheduleError(null);
 
-      // Default start time: current hour rounded, end time +8 hours
       const now = new Date();
       now.setMinutes(0, 0, 0);
       const later = new Date(now.getTime() + 8 * 60 * 60 * 1000);
@@ -105,14 +127,14 @@ export const ShiftCalendar: React.FC = () => {
       setStartsAt(toLocalIso(now));
       setEndsAt(toLocalIso(later));
 
-      const res = await apiClient.get<PageResponse<UserSummary>>('/api/users?size=100&role=ANALYST');
-      const list = res.content || [];
+      const res = await apiClient.get<PageResponse<UserSummary>>('/api/users?size=100&active=true');
+      const list = (res.content || []).filter((u) => u.role === 'ANALYST' || u.role === 'ADMIN');
       setUsersList(list);
       if (list.length > 0) {
         setSelectedUserId(list[0].id);
       }
     } catch {
-      // Fallback
+      // fallback
     }
   };
 
@@ -120,12 +142,8 @@ export const ShiftCalendar: React.FC = () => {
     e.preventDefault();
     setScheduleError(null);
 
-    if (!selectedUserId) {
-      setScheduleError('Select an analyst');
-      return;
-    }
-    if (!startsAt || !endsAt) {
-      setScheduleError('Specify both start and end time');
+    if (!selectedUserId || !startsAt || !endsAt) {
+      setScheduleError('All fields are required');
       return;
     }
 
@@ -133,7 +151,7 @@ export const ShiftCalendar: React.FC = () => {
     const endDate = new Date(endsAt);
 
     if (endDate <= startDate) {
-      setScheduleError('Shift end must be after its start');
+      setScheduleError('Shift end time must be after start time');
       return;
     }
 
@@ -199,6 +217,39 @@ export const ShiftCalendar: React.FC = () => {
     }
   };
 
+  const openExecuteHandoverModal = (shift: Shift) => {
+    setShiftToHandover(shift);
+    setHandoverNotes('');
+    setHandoverExecutionResult(null);
+    setExecuteModalOpen(true);
+  };
+
+  const handleExecuteHandover = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shiftToHandover) return;
+
+    try {
+      setExecutingHandover(true);
+      const res = await apiClient.post<ShiftHandoverResult>(
+        `/api/shifts/${shiftToHandover.id}/handover`,
+        { notes: handoverNotes.trim() }
+      );
+      setHandoverExecutionResult(res);
+      addToast({
+        type: 'success',
+        message: `Handover recorded for ${shiftToHandover.userName}`,
+      });
+    } catch (err: unknown) {
+      const apiErr = err as { message?: string };
+      addToast({
+        type: 'error',
+        message: apiErr.message || 'Failed to execute shift handover',
+      });
+    } finally {
+      setExecutingHandover(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header bar */}
@@ -238,78 +289,63 @@ export const ShiftCalendar: React.FC = () => {
         </div>
 
         {activeShifts.length === 0 ? (
-          <div className="text-xs text-amber-400/90 py-1 font-mono">
-            ⚠ Warning: No analyst is currently on an active shift! Incoming incidents will require manual assignment.
+          <div className="text-xs text-amber-400/90 py-1">
+            ⚠️ Warning: No operators are actively on shift right now. New incidents will route to squad leads or administrators.
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-2">
             {activeShifts.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center gap-2 px-2.5 py-1 rounded bg-gray-900 border border-emerald-900/60 text-xs"
+                className="flex items-center gap-2 bg-gray-900/90 border border-emerald-800/80 px-2.5 py-1 rounded text-xs text-gray-200"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                <span className="font-medium text-gray-100">{s.userName}</span>
+                <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                <span className="font-medium">{s.userName}</span>
                 <span className="text-[10px] text-gray-400 font-mono">
-                  ends {new Date(s.endsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  Until {new Date(s.endsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => openExecuteHandoverModal(s)}
+                  className="ml-1 text-[10px] text-sky-400 hover:text-sky-300 font-medium underline"
+                >
+                  Handover
+                </button>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {error && (
-        <div className="p-3 bg-red-950/60 border border-red-800 text-red-300 text-xs rounded-md">
-          {error}
-        </div>
-      )}
-
-      {/* 24-Hour Visual Shift Timeline Bar */}
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
-              24-Hour Coverage Timeline (Today)
-            </h3>
-            <span className="text-[10px] text-gray-500 font-mono">00:00 - 24:00 Local</span>
-          </div>
-          <div className="flex items-center gap-3 text-[11px] text-gray-400">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded bg-emerald-500 inline-block animate-pulse"></span>
-              On-Duty (Active)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded bg-gray-700 inline-block"></span>
-              Off-Shift / Scheduled
-            </span>
-          </div>
+      {/* Timeline Gantt Preview */}
+      <div className="bg-gray-900/60 border border-gray-800 rounded-lg p-3">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+            Today&apos;s Coverage Timeline (24h UTC)
+          </h3>
+          <span className="text-[11px] text-gray-500">Live operational window</span>
         </div>
 
-        {/* 24-Hour Ruler & Blocks */}
         <div className="relative pt-6 pb-2">
           {/* Hour markers */}
-          <div className="absolute top-0 left-0 right-0 flex justify-between text-[10px] text-gray-500 font-mono">
+          <div className="grid grid-cols-12 text-[10px] text-gray-500 font-mono border-b border-gray-800 pb-1">
             <span>00:00</span>
+            <span>02:00</span>
             <span>04:00</span>
+            <span>06:00</span>
             <span>08:00</span>
+            <span>10:00</span>
             <span>12:00</span>
+            <span>14:00</span>
             <span>16:00</span>
+            <span>18:00</span>
             <span>20:00</span>
-            <span>24:00</span>
+            <span>22:00</span>
           </div>
 
-          {/* Track */}
-          <div className="h-10 bg-gray-950 border border-gray-800 rounded-md relative overflow-hidden flex items-center">
-            {/* Hour grid lines */}
-            <div className="absolute inset-0 flex justify-between pointer-events-none opacity-20">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <div key={i} className="h-full border-r border-gray-500"></div>
-              ))}
-            </div>
-
-            {/* Shift blocks */}
-            {shifts.map((shift) => {
+          {/* Timeline Bars */}
+          <div className="relative h-16 mt-2 bg-gray-950/60 rounded border border-gray-800/80 overflow-hidden">
+            {shifts.map((shift, idx) => {
               const start = new Date(shift.startsAt);
               const end = new Date(shift.endsAt);
               const now = new Date();
@@ -318,14 +354,21 @@ export const ShiftCalendar: React.FC = () => {
               const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
               const startMin = Math.max(0, (start.getTime() - startOfDay) / (1000 * 60));
               const endMin = Math.min(1440, (end.getTime() - startOfDay) / (1000 * 60));
-              const leftPct = Math.max(0, Math.min(100, (startMin / 1440) * 100));
-              const widthPct = Math.max(4, Math.min(100 - leftPct, ((endMin - startMin) / 1440) * 100));
+
+              if (endMin <= 0 || startMin >= 1440) return null;
+
+              const leftPct = (startMin / 1440) * 100;
+              const widthPct = Math.max(2, ((endMin - startMin) / 1440) * 100);
 
               return (
                 <div
                   key={shift.id}
-                  style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                  className={`absolute h-7 rounded px-2 flex items-center justify-between text-[10px] font-medium transition-all shadow-sm ${
+                  style={{
+                    left: `${leftPct}%`,
+                    width: `${widthPct}%`,
+                    top: `${(idx % 2) * 28 + 4}px`,
+                  }}
+                  className={`absolute h-6 rounded px-2 flex items-center text-[10px] font-medium transition-all ${
                     isCurrent
                       ? 'bg-emerald-600/90 border border-emerald-400 text-white font-bold ring-1 ring-emerald-400/50'
                       : 'bg-gray-800/80 border border-gray-700 text-gray-400 opacity-60'
@@ -339,23 +382,6 @@ export const ShiftCalendar: React.FC = () => {
                 </div>
               );
             })}
-
-            {/* Current Time Indicator */}
-            {(() => {
-              const now = new Date();
-              const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-              const nowMin = (now.getTime() - startOfDay) / (1000 * 60);
-              const nowPct = Math.max(0, Math.min(100, (nowMin / 1440) * 100));
-              return (
-                <div
-                  style={{ left: `${nowPct}%` }}
-                  className="absolute top-0 bottom-0 w-0.5 bg-rose-500 z-10 shadow-sm shadow-rose-500/50"
-                  title={`Current time: ${now.toLocaleTimeString()}`}
-                >
-                  <div className="w-2 h-2 rounded-full bg-rose-500 -ml-[3px] -mt-0.5"></div>
-                </div>
-              );
-            })()}
           </div>
         </div>
       </div>
@@ -418,13 +444,22 @@ export const ShiftCalendar: React.FC = () => {
                         {durationHours} hrs
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteShift(shift.id, shift.userName)}
-                          className="text-rose-400 hover:text-rose-300 text-[11px] font-medium"
-                        >
-                          Cancel
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openExecuteHandoverModal(shift)}
+                            className="text-sky-400 hover:text-sky-300 text-[11px] font-medium"
+                          >
+                            Handover
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteShift(shift.id, shift.userName)}
+                            className="text-rose-400 hover:text-rose-300 text-[11px] font-medium"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -440,6 +475,7 @@ export const ShiftCalendar: React.FC = () => {
         open={scheduleModalOpen}
         onClose={() => setScheduleModalOpen(false)}
         title="Schedule Analyst Shift"
+        maxWidth="md"
       >
         <div className="text-xs text-gray-400 mb-3">
           Assign an analyst to an operational SOC shift. Overlaps for the same analyst will be rejected.
@@ -452,14 +488,11 @@ export const ShiftCalendar: React.FC = () => {
           )}
 
           <div>
-            <label htmlFor="shift-operator" className="block text-xs font-medium text-gray-300 mb-1">
-              Select Operator
-            </label>
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Analyst Operator</label>
             <select
-              id="shift-operator"
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-800 rounded px-2.5 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               required
             >
               {usersList.map((u) => (
@@ -472,28 +505,22 @@ export const ShiftCalendar: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="shift-starts-at" className="block text-xs font-medium text-gray-300 mb-1">
-                Shift Start (Local)
-              </label>
+              <label className="block text-xs font-semibold text-gray-300 mb-1">Start Time (UTC)</label>
               <input
-                id="shift-starts-at"
                 type="datetime-local"
                 value={startsAt}
                 onChange={(e) => setStartsAt(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label htmlFor="shift-ends-at" className="block text-xs font-medium text-gray-300 mb-1">
-                Shift End (Local)
-              </label>
+              <label className="block text-xs font-semibold text-gray-300 mb-1">End Time (UTC)</label>
               <input
-                id="shift-ends-at"
                 type="datetime-local"
                 value={endsAt}
                 onChange={(e) => setEndsAt(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
@@ -508,8 +535,8 @@ export const ShiftCalendar: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" loading={scheduleLoading}>
-              Schedule Shift
+            <Button type="submit" disabled={scheduleLoading}>
+              {scheduleLoading ? 'Scheduling...' : 'Schedule Shift'}
             </Button>
           </div>
         </form>
@@ -532,12 +559,6 @@ export const ShiftCalendar: React.FC = () => {
             </div>
           ) : handoverData ? (
             <div className="space-y-4 text-xs">
-              {/* Summary quote */}
-              <div className="p-3 bg-blue-950/30 border border-blue-900/50 rounded-lg text-gray-200 font-mono text-[11px] leading-relaxed">
-                {handoverData.templatedText}
-              </div>
-
-              {/* KPI grid */}
               <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="p-2.5 rounded bg-gray-950 border border-gray-800">
                   <div className="text-[10px] text-gray-400 uppercase font-medium">Open Incidents</div>
@@ -559,10 +580,9 @@ export const ShiftCalendar: React.FC = () => {
                 </div>
               </div>
 
-              {/* Urgent Incidents Table */}
               <div>
                 <h4 className="font-semibold text-gray-300 mb-2">Priority Incidents Requiring Attention</h4>
-                {handoverData.urgentIncidents.length === 0 ? (
+                {handoverData.urgentIncidents && handoverData.urgentIncidents.length === 0 ? (
                   <p className="text-gray-500 py-3 text-center border border-dashed border-gray-800 rounded">
                     No urgent incidents currently active.
                   </p>
@@ -578,15 +598,13 @@ export const ShiftCalendar: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-800/60">
-                        {handoverData.urgentIncidents.map((inc) => (
+                        {(handoverData.urgentIncidents || []).map((inc) => (
                           <tr key={inc.code} className="hover:bg-gray-800/30">
                             <td className="py-2 px-3 font-mono text-sky-400">{inc.code}</td>
                             <td className="py-2 px-3 font-medium text-gray-200">{inc.title}</td>
                             <td className="py-2 px-3 text-gray-400">{inc.assigneeName}</td>
                             <td className="py-2 px-3 text-right font-mono">
-                              <span
-                                className={inc.minutesToDue < 30 ? 'text-red-400 font-bold' : 'text-gray-300'}
-                              >
+                              <span className={inc.minutesToDue < 30 ? 'text-red-400 font-bold' : 'text-gray-300'}>
                                 {inc.minutesToDue}m
                               </span>
                             </td>
@@ -611,7 +629,82 @@ export const ShiftCalendar: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Shift-Specific Handover Execution Modal */}
+      <Modal
+        open={executeModalOpen}
+        onClose={() => setExecuteModalOpen(false)}
+        title={`Execute Handover: ${shiftToHandover?.userName || 'Operator'}`}
+        maxWidth="md"
+      >
+        {handoverExecutionResult ? (
+          <div className="space-y-4">
+            <div className="p-3 bg-emerald-950/40 border border-emerald-800 rounded text-emerald-300 text-xs font-medium">
+              ✅ Shift handover recorded successfully on backend.
+            </div>
+
+            <div className="p-3 bg-gray-950 border border-gray-800 rounded text-xs space-y-2">
+              <div className="font-semibold text-gray-200">Backend Incident Calculation:</div>
+              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-gray-300">
+                <div>Total Pending: {handoverExecutionResult.pendingIncidentCount}</div>
+                <div>SLA At Risk: {handoverExecutionResult.atRiskCount}</div>
+                <div>P1: {handoverExecutionResult.p1Count} · P2: {handoverExecutionResult.p2Count}</div>
+                <div>P3: {handoverExecutionResult.p3Count} · P4: {handoverExecutionResult.p4Count}</div>
+              </div>
+              <div className="text-[11px] text-gray-400 italic mt-2">
+                &quot;{handoverExecutionResult.summary}&quot;
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-gray-800">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setExecuteModalOpen(false);
+                  setHandoverExecutionResult(null);
+                }}
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleExecuteHandover} className="space-y-4">
+            <div className="text-xs text-gray-400">
+              Complete shift handover for {shiftToHandover?.userName}. The backend will automatically tally pending incidents and compile the shift status.
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-300 mb-1">
+                Handover Remarks & In-Flight Context
+              </label>
+              <textarea
+                value={handoverNotes}
+                onChange={(e) => setHandoverNotes(e.target.value)}
+                placeholder="e.g. Completed triage on P2 brute force alerts. Pending investigation on database lateral movement in prod cluster."
+                rows={4}
+                className="w-full bg-gray-950 border border-gray-800 rounded p-2.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-800">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setExecuteModalOpen(false)}
+                disabled={executingHandover}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={executingHandover}>
+                {executingHandover ? 'Processing...' : 'Complete Handover'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 };
+
 export default ShiftCalendar;

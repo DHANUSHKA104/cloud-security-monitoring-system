@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient } from '@/services/api/apiClient';
 import { API_ENDPOINTS } from '@/constants/api.constants';
 import { User, Role } from '@/types';
+import { tokenManager } from '@/features/auth/utils/tokenManager';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -36,10 +37,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 
   useEffect(() => {
-    // Attempt silent refresh on startup
+    // Attempt token restoration or silent refresh on startup
     const initAuth = async () => {
       try {
         setLoading(true);
+        const existingToken = tokenManager.get();
+        if (existingToken) {
+          try {
+            const meRes = await apiClient.get<User>(API_ENDPOINTS.AUTH.ME, {
+              headers: { Authorization: `Bearer ${existingToken}` },
+            });
+            setSession(meRes, existingToken);
+            setLoading(false);
+            return;
+          } catch {
+            // Token expired or invalid, fall through to refresh
+          }
+        }
+
         // Refresh token from HttpOnly cookie
         const refreshRes = await apiClient.post<{ accessToken: string; expiresIn: number }>(
           API_ENDPOINTS.AUTH.REFRESH
@@ -69,3 +84,5 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };
+
+export default AuthProvider;

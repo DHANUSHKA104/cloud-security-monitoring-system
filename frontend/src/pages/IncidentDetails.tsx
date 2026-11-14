@@ -1,19 +1,23 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useIncident, useIncidentTimeline } from '@/features/incidents';
 import { PriorityBadge, StatusBadge, SlaTimer } from '@/features/incidents';
+import { PlaybookChecklist } from '@/features/playbooks/components/PlaybookChecklist';
 import { formatDateTime } from '@/utils/formatters/dateFormatter';
 import { ROUTES } from '@/constants/routes.constants';
 
 export const IncidentDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { data: incident, isLoading } = useIncident(id || '');
-  const { data: timeline } = useIncidentTimeline(id || '');
+  const { user } = useAuth();
+  const { data: rawIncident, isLoading } = useIncident(id || '');
+  const incident = (rawIncident as any)?.incident || rawIncident;
+  const { data: timeline, refetch: refetchTimeline } = useIncidentTimeline(id || '');
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
       </div>
     );
   }
@@ -21,15 +25,17 @@ export const IncidentDetails: React.FC = () => {
   if (!incident) {
     return (
       <div className="p-8 text-center text-xs text-gray-400">
-        Incident not found. <Link to={ROUTES.INCIDENTS} className="text-blue-400 underline">Return to incidents</Link>
+        Incident not found. <Link to={ROUTES.INCIDENTS} className="text-purple-400 underline">Return to incidents</Link>
       </div>
     );
   }
 
+  const canExecutePlaybook = user?.role === 'ANALYST' || user?.role === 'ADMIN';
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
-        <Link to={ROUTES.INCIDENTS} className="text-xs text-blue-400 hover:underline">
+        <Link to={ROUTES.INCIDENTS} className="text-xs text-purple-400 hover:underline">
           &larr; Back to Incidents
         </Link>
         <SlaTimer
@@ -67,8 +73,26 @@ export const IncidentDetails: React.FC = () => {
             <span className="text-gray-500 block">SLA Target Due</span>
             <span className="text-gray-300">{formatDateTime(incident.slaDueAt)}</span>
           </div>
+          {incident.assetId && (
+            <div className="sm:col-span-2">
+              <span className="text-gray-500 block">Affected Asset</span>
+              <Link
+                to={`${ROUTES.ASSETS}?q=${encodeURIComponent(incident.assetId)}`}
+                className="text-purple-400 hover:text-purple-300 font-mono text-[11px] underline"
+              >
+                {incident.assetId} &rarr;
+              </Link>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Guided Incident Response Playbook Checklist */}
+      <PlaybookChecklist
+        incidentId={incident.id}
+        canExecute={canExecutePlaybook}
+        onStepExecuted={() => refetchTimeline()}
+      />
 
       {/* Why this analyst explanation */}
       {incident.assignmentExplanation && (
@@ -77,7 +101,7 @@ export const IncidentDetails: React.FC = () => {
             Why this analyst? (100-Point Scoring Algorithm)
           </h3>
           <div className="space-y-2">
-            {incident.assignmentExplanation.candidates.map((cand) => (
+            {incident.assignmentExplanation.candidates.map((cand: any) => (
               <div
                 key={cand.userId}
                 className="p-2.5 rounded bg-gray-950 border border-gray-800 flex items-center justify-between text-xs"
@@ -89,7 +113,7 @@ export const IncidentDetails: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="font-mono font-bold text-blue-400">{cand.total} pts</span>
+                  <span className="font-mono font-bold text-purple-400">{cand.total} pts</span>
                   {incident.assignmentExplanation?.winner === cand.userId && (
                     <span className="ml-2 text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded">
                       Selected
@@ -107,7 +131,7 @@ export const IncidentDetails: React.FC = () => {
         <h3 className="text-xs font-semibold text-gray-200 mb-3">Audit Timeline</h3>
         <div className="space-y-2">
           {timeline?.map((evt) => (
-            <div key={evt.id} className="p-2 text-xs border-l-2 border-blue-500 pl-3">
+            <div key={evt.id} className="p-2 text-xs border-l-2 border-purple-500 pl-3">
               <div className="flex justify-between text-[10px] text-gray-500">
                 <span className="font-mono text-gray-400">{evt.type}</span>
                 <span>{formatDateTime(evt.createdAt)}</span>
@@ -122,4 +146,5 @@ export const IncidentDetails: React.FC = () => {
     </div>
   );
 };
+
 export default IncidentDetails;

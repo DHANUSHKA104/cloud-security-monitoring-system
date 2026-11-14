@@ -1,9 +1,7 @@
 package com.cloudsec.monitor.shift;
 
 import com.cloudsec.monitor.security.UserPrincipal;
-import com.cloudsec.monitor.shift.dto.CreateShiftRequest;
-import com.cloudsec.monitor.shift.dto.HandoverResponse;
-import com.cloudsec.monitor.shift.dto.ShiftResponse;
+import com.cloudsec.monitor.shift.dto.*;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -66,5 +64,16 @@ public class ShiftController {
     @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
     public ResponseEntity<HandoverResponse> getHandover(@RequestParam(required = false) UUID teamId) {
         return ResponseEntity.ok(handoverService.generateHandover(teamId));
+    }
+
+    @PostMapping("/{id}/handover")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
+    public ResponseEntity<ShiftHandoverResponse> executeShiftHandover(
+            @PathVariable UUID id,
+            @RequestBody(required = false) ShiftHandoverRequest request,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        ShiftHandoverResponse response = handoverService.processShiftHandover(id, currentUser, request);
+        return ResponseEntity.ok(response);
     }
 }

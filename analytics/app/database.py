@@ -12,10 +12,10 @@ def get_connection_string() -> str:
                 if line.startswith("ANALYTICS_DB_URL=") and not os.environ.get("ANALYTICS_DB_URL"):
                     return line.split("=", 1)[1].strip()
 
-    return os.environ.get(
-        "ANALYTICS_DB_URL",
-        "postgresql://analytics_ro:analytics_ro_pass_2026@localhost:5432/cloudsec"
-    )
+    conn_str = os.environ.get("ANALYTICS_DB_URL")
+    if not conn_str:
+        raise RuntimeError("Missing required environment variable: ANALYTICS_DB_URL")
+    return conn_str
 
 def get_db_connection():
     conn_str = get_connection_string()

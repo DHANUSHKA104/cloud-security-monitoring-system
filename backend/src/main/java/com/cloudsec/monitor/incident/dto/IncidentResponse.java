@@ -84,8 +84,14 @@ public class IncidentResponse {
             dto.setTimeRemainingSeconds(remaining);
             if (remaining <= 0) {
                 dto.setSlaState(SlaState.BREACHED);
-            } else if (remaining <= 1800) { // within 30 minutes
-                dto.setSlaState(SlaState.AT_RISK);
+            } else if (incident.getCreatedAt() != null && incident.getSlaDueAt() != null) {
+                long totalSla = Duration.between(incident.getCreatedAt(), incident.getSlaDueAt()).getSeconds();
+                // Spec 10.4: fallback 50% of the SLA window
+                if (remaining <= totalSla * 0.5) {
+                    dto.setSlaState(SlaState.AT_RISK);
+                } else {
+                    dto.setSlaState(SlaState.ON_TRACK);
+                }
             } else {
                 dto.setSlaState(SlaState.ON_TRACK);
             }

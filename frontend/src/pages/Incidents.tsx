@@ -133,10 +133,11 @@ export const Incidents: React.FC = () => {
           >
             <option value="">All Categories</option>
             <option value="AUTH_ATTACK">AUTH_ATTACK</option>
-            <option value="DATA_EXFIL">DATA_EXFIL</option>
-            <option value="RANSOMWARE">RANSOMWARE</option>
+            <option value="MALWARE">MALWARE</option>
+            <option value="DATA_EXPOSURE">DATA_EXPOSURE</option>
             <option value="NETWORK_INTRUSION">NETWORK_INTRUSION</option>
             <option value="POLICY_VIOLATION">POLICY_VIOLATION</option>
+            <option value="CLOUD_MISCONFIG">CLOUD_MISCONFIG</option>
           </select>
 
           <select

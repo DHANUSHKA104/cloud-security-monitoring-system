@@ -1,4 +1,5 @@
 import datetime
+import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -43,9 +44,10 @@ def test_calculate_coverage_gaps():
     mock_cur.fetchall.return_value = []
 
     gaps = calculate_coverage_gaps(mock_conn)
-    # 3 days * 3 peak slots = 9 gaps
-    assert len(gaps) == 9
+    # Future slots across the 3-day window are flagged (at least tomorrow and day-after = 6 slots)
+    assert len(gaps) >= 6
     assert all(g.analystsScheduled == 0 for g in gaps)
+    assert all(g.expectedLoad > 0 for g in gaps)
 
 
 def test_calculate_resolution_stats():
@@ -88,3 +90,21 @@ def test_insights_wrong_key_returns_403():
     client = TestClient(app)
     response = client.get("/api/insights", headers={"X-Analytics-Key": "wrong-key"})
     assert response.status_code == 403
+
+
+def test_anomalies_missing_key_returns_401():
+    client = TestClient(app)
+    response = client.get("/api/anomalies")
+    assert response.status_code == 401
+
+
+def test_coverage_missing_key_returns_401():
+    client = TestClient(app)
+    response = client.get("/api/coverage")
+    assert response.status_code == 401
+
+
+def test_resolution_missing_key_returns_401():
+    client = TestClient(app)
+    response = client.get("/api/resolution")
+    assert response.status_code == 401

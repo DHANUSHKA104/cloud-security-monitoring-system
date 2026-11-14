@@ -14,6 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
@@ -46,7 +47,7 @@ class ShiftServiceTest {
         sampleUserId = UUID.randomUUID();
         adminId = UUID.randomUUID();
         sampleUser = new User("analyst@cloudsec.local", "hash", "Alice Analyst", "SOC", Role.ANALYST);
-        // reflection or setter if id is auto-generated
+        sampleUser.setId(sampleUserId);
     }
 
     @Test
@@ -101,6 +102,39 @@ class ShiftServiceTest {
         ApiException ex = assertThrows(ApiException.class, () -> shiftService.createShift(request, adminId));
         assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
         assertEquals("Shift duration cannot exceed 16 hours", ex.getMessage());
+    }
+
+    @Test
+    void createShift_WhenDurationExceeds16HoursByOneMinute_ThrowsValidationError() {
+        Instant startsAt = Instant.now().plus(1, ChronoUnit.HOURS);
+        Instant endsAt = startsAt.plus(16, ChronoUnit.HOURS).plus(1, ChronoUnit.MINUTES);
+
+        CreateShiftRequest request = new CreateShiftRequest();
+        request.setUserId(sampleUserId);
+        request.setStartsAt(startsAt);
+        request.setEndsAt(endsAt);
+
+        ApiException ex = assertThrows(ApiException.class, () -> shiftService.createShift(request, adminId));
+        assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        assertEquals("Shift duration cannot exceed 16 hours", ex.getMessage());
+    }
+
+    @Test
+    void createShift_WhenUserInactive_ThrowsValidationError() {
+        Instant startsAt = Instant.now().plus(1, ChronoUnit.HOURS);
+        Instant endsAt = startsAt.plus(8, ChronoUnit.HOURS);
+
+        CreateShiftRequest request = new CreateShiftRequest();
+        request.setUserId(sampleUserId);
+        request.setStartsAt(startsAt);
+        request.setEndsAt(endsAt);
+
+        sampleUser.setActive(false);
+        when(userRepository.findById(sampleUserId)).thenReturn(Optional.of(sampleUser));
+
+        ApiException ex = assertThrows(ApiException.class, () -> shiftService.createShift(request, adminId));
+        assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        assertEquals("Cannot schedule shifts for inactive users", ex.getMessage());
     }
 
     @Test

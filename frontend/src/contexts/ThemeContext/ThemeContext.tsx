@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { storageService } from '@/services/storage/storageService';
 
-type Theme = 'dark' | 'light';
+export type Theme = 'dark' | 'light';
 
 interface ThemeContextType {
   theme: Theme;
@@ -11,15 +11,38 @@ interface ThemeContextType {
 
 const THEME_STORAGE_KEY = 'cloudsec_theme';
 
+const getInitialTheme = (): Theme => {
+  try {
+    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    if (!raw) return 'dark';
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed === 'light' || parsed === 'dark') return parsed;
+    } catch {
+      if (raw === 'light' || raw === 'dark') return raw;
+    }
+  } catch {
+    // fallback
+  }
+  return 'dark';
+};
+
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    return storageService.get<Theme>(THEME_STORAGE_KEY, 'dark');
-  });
+  const [theme, setThemeState] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    const root = document.documentElement;
+    root.setAttribute('data-theme', theme);
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    }
+    root.style.colorScheme = theme;
     storageService.set(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
@@ -45,3 +68,4 @@ export const useTheme = (): ThemeContextType => {
   }
   return context;
 };
+export default ThemeProvider;

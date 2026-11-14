@@ -15,8 +15,8 @@ public class SignupRequest {
     @Size(max = 254, message = "Enter a valid email address")
     private String email;
 
-    @NotBlank(message = "Password must be 10 to 72 characters and different from your email")
-    @Size(min = 10, max = 72, message = "Password must be 10 to 72 characters and different from your email")
+    @NotBlank(message = "Password must be at least 8 characters and different from your email")
+    @Size(min = 8, max = 72, message = "Password must be at least 8 characters and different from your email")
     private String password;
 
     public SignupRequest() {}
@@ -32,7 +32,7 @@ public class SignupRequest {
     }
 
     public void setFullName(String fullName) {
-        this.fullName = fullName;
+        this.fullName = fullName != null ? fullName.trim() : null;
     }
 
     public String getEmail() {
@@ -40,7 +40,7 @@ public class SignupRequest {
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        this.email = email != null ? email.trim().toLowerCase() : null;
     }
 
     public String getPassword() {

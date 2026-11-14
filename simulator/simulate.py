@@ -117,10 +117,12 @@ def load_sim_key_from_env() -> str:
                 line = line.strip()
                 if line.startswith("SIM_API_KEY="):
                     return line.split("=", 1)[1].strip()
-    return os.environ.get("SIM_API_KEY", "cloudsec-sim-key")
+    return os.environ.get("SIM_API_KEY", "")
 
 
 def dispatch_incident(api_url: str, sim_key: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    if not sim_key:
+        raise ValueError("SIM_API_KEY is required to dispatch simulated incidents. Set it in .env or pass --sim-key.")
     endpoint = f"{api_url.rstrip('/')}/sim/incidents"
     headers = {
         "Content-Type": "application/json",

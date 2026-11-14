@@ -117,7 +117,7 @@ public class IncidentController {
     }
 
     @PostMapping("/{id}/comments")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
     public ResponseEntity<Void> addComment(
             @PathVariable UUID id,
             @Valid @RequestBody CommentRequest request,

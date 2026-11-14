@@ -77,6 +77,8 @@ public class IncidentService {
         // Run Smart Routing
         SmartRoutingService.RoutingResult routing = smartRoutingService.routeIncident(
                 request.getCategory(),
+                request.getPriority(),
+                policy.getResolveMinutes(),
                 request.getTeamId()
         );
 
@@ -200,6 +202,15 @@ public class IncidentService {
         Incident incident = incidentRepository.findById(id)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Incident not found"));
 
+        // Object-level auth: Analysts may change status only on incidents assigned to them or their team
+        if (actor != null && actor.getRole() == Role.ANALYST) {
+            boolean isAssignedToActor = incident.getAssignee() != null && incident.getAssignee().getId().equals(actor.getId());
+            boolean isMemberOfTeam = incident.getTeam() != null && teamMemberRepository.findByTeamIdAndUserId(incident.getTeam().getId(), actor.getId()).isPresent();
+            if (!isAssignedToActor && !isMemberOfTeam) {
+                throw new ApiException(ErrorCode.FORBIDDEN, "Analysts may only update incidents assigned to them or their team");
+            }
+        }
+
         IncidentStatus fromStatus = incident.getStatus();
         IncidentStatus toStatus = request.getStatus();
 
@@ -267,6 +278,16 @@ public class IncidentService {
         Incident incident = incidentRepository.findById(id)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Incident not found"));
 
+        // Object-level auth: Escalate: Admin or team lead only
+        if (actor != null && actor.getRole() != Role.ADMIN) {
+            boolean isLead = incident.getTeam() != null && teamMemberRepository.findByTeamIdAndUserId(incident.getTeam().getId(), actor.getId())
+                    .map(tm -> tm.getTeamRole() == TeamRole.LEAD)
+                    .orElse(false);
+            if (!isLead) {
+                throw new ApiException(ErrorCode.FORBIDDEN, "Only an Administrator or Team Lead may escalate this incident");
+            }
+        }
+
         if (incident.getEscalationLevel() >= 2) {
             throw new ApiException(ErrorCode.CONFLICT, "Incident has already reached maximum escalation level 2");
         }
@@ -310,6 +331,15 @@ public class IncidentService {
         Incident incident = incidentRepository.findById(id)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Incident not found"));
 
+        // Object-level auth: Analysts may comment only on incidents assigned to them or their team
+        if (actor != null && actor.getRole() == Role.ANALYST) {
+            boolean isAssignedToActor = incident.getAssignee() != null && incident.getAssignee().getId().equals(actor.getId());
+            boolean isMemberOfTeam = incident.getTeam() != null && teamMemberRepository.findByTeamIdAndUserId(incident.getTeam().getId(), actor.getId()).isPresent();
+            if (!isAssignedToActor && !isMemberOfTeam) {
+                throw new ApiException(ErrorCode.FORBIDDEN, "Analysts may only comment on incidents assigned to them or their team");
+            }
+        }
+
         logEvent(incident, "COMMENT_ADDED", actor, Map.of("text", request.getText()));
     }
 
@@ -317,6 +347,16 @@ public class IncidentService {
     public IncidentResponse reopenIncident(UUID id, ReopenRequest request, User actor) {
         Incident incident = incidentRepository.findById(id)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Incident not found"));
+
+        // Object-level auth: Reopen: Admin or team lead only
+        if (actor != null && actor.getRole() != Role.ADMIN) {
+            boolean isLead = incident.getTeam() != null && teamMemberRepository.findByTeamIdAndUserId(incident.getTeam().getId(), actor.getId())
+                    .map(tm -> tm.getTeamRole() == TeamRole.LEAD)
+                    .orElse(false);
+            if (!isLead) {
+                throw new ApiException(ErrorCode.FORBIDDEN, "Only an Administrator or Team Lead may reopen this incident");
+            }
+        }
 
         if (incident.getStatus() != IncidentStatus.RESOLVED && incident.getStatus() != IncidentStatus.CLOSED) {
             throw new ApiException(ErrorCode.CONFLICT, "Only resolved or closed incidents can be reopened");
@@ -346,7 +386,7 @@ public class IncidentService {
             case OPEN -> to == IncidentStatus.TRIAGED || to == IncidentStatus.IN_PROGRESS;
             case TRIAGED -> to == IncidentStatus.IN_PROGRESS || to == IncidentStatus.OPEN;
             case IN_PROGRESS -> to == IncidentStatus.RESOLVED || to == IncidentStatus.TRIAGED;
-            case RESOLVED -> to == IncidentStatus.CLOSED || to == IncidentStatus.IN_PROGRESS;
+            case RESOLVED -> to == IncidentStatus.CLOSED; // Removed RESOLVED -> IN_PROGRESS (must use reopen endpoint)
             case CLOSED -> false;
         };
 

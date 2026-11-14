@@ -7,10 +7,12 @@ import com.cloudsec.monitor.user.User;
 import com.cloudsec.monitor.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -27,6 +29,24 @@ public class SlaEscalationScheduler {
     private final SlaPolicyRepository slaPolicyRepository;
     private final UserRepository userRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final Clock clock;
+
+    @Autowired
+    public SlaEscalationScheduler(
+            IncidentRepository incidentRepository,
+            IncidentEventRepository incidentEventRepository,
+            SlaPolicyRepository slaPolicyRepository,
+            UserRepository userRepository,
+            TeamMemberRepository teamMemberRepository,
+            @Autowired(required = false) Clock clock
+    ) {
+        this.incidentRepository = incidentRepository;
+        this.incidentEventRepository = incidentEventRepository;
+        this.slaPolicyRepository = slaPolicyRepository;
+        this.userRepository = userRepository;
+        this.teamMemberRepository = teamMemberRepository;
+        this.clock = clock != null ? clock : Clock.systemUTC();
+    }
 
     public SlaEscalationScheduler(
             IncidentRepository incidentRepository,
@@ -35,11 +55,7 @@ public class SlaEscalationScheduler {
             UserRepository userRepository,
             TeamMemberRepository teamMemberRepository
     ) {
-        this.incidentRepository = incidentRepository;
-        this.incidentEventRepository = incidentEventRepository;
-        this.slaPolicyRepository = slaPolicyRepository;
-        this.userRepository = userRepository;
-        this.teamMemberRepository = teamMemberRepository;
+        this(incidentRepository, incidentEventRepository, slaPolicyRepository, userRepository, teamMemberRepository, Clock.systemUTC());
     }
 
     @Scheduled(fixedDelay = 30000, initialDelay = 15000)
@@ -50,7 +66,7 @@ public class SlaEscalationScheduler {
             return;
         }
 
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         List<User> admins = userRepository.findByRole(Role.ADMIN);
         User defaultAdmin = admins.isEmpty() ? null : admins.get(0);
 
@@ -63,7 +79,14 @@ public class SlaEscalationScheduler {
         }
     }
 
-    private void processIncidentSla(Incident incident, Instant now, User defaultAdmin) {
+    public void processIncidentSla(Incident incident, Instant now, User defaultAdmin) {
+        // SLA Policy lookup
+        Optional<SlaPolicy> policyOpt = slaPolicyRepository.findById(incident.getPriority());
+        if (policyOpt.isEmpty()) {
+            return;
+        }
+        SlaPolicy policy = policyOpt.get();
+
         // 1. SLA Breach Check
         if (now.isAfter(incident.getSlaDueAt())) {
             if (!incidentEventRepository.existsByIncidentIdAndType(incident.getId(), "SLA_BREACHED")) {
@@ -76,28 +99,32 @@ public class SlaEscalationScheduler {
                 log.warn("Incident {} breached SLA deadline", incident.getCode());
             }
         } else {
-            // SLA At-Risk Check (within 30 minutes)
+            // SLA At-Risk Check: Spec 10.4 - use median resolution time in last 90 days (fallback 50% of SLA window)
             long remainingSeconds = Duration.between(now, incident.getSlaDueAt()).getSeconds();
-            if (remainingSeconds <= 1800) {
+            Instant cutoff90d = now.minus(90, java.time.temporal.ChronoUnit.DAYS);
+            long sampleCount = incidentRepository.countResolvedSinceByCategoryAndPriority(incident.getCategory(), incident.getPriority(), cutoff90d);
+            long expectedResolutionSeconds;
+            if (sampleCount >= 5) {
+                Double medianSec = incidentRepository.findMedianResolutionSeconds(incident.getCategory(), incident.getPriority().name(), cutoff90d);
+                expectedResolutionSeconds = (medianSec != null) ? medianSec.longValue() : (long) (policy.getResolveMinutes() * 60 * 0.5);
+            } else {
+                expectedResolutionSeconds = (long) (policy.getResolveMinutes() * 60 * 0.5); // 50% fallback
+            }
+
+            if (remainingSeconds < expectedResolutionSeconds) {
                 if (!incidentEventRepository.existsByIncidentIdAndType(incident.getId(), "SLA_AT_RISK")) {
                     incidentEventRepository.save(new IncidentEvent(
                             incident,
                             "SLA_AT_RISK",
                             null,
-                            "{\"remainingSeconds\": " + remainingSeconds + "}"
+                            "{\"remainingSeconds\": " + remainingSeconds + ", \"expectedResolutionSeconds\": " + expectedResolutionSeconds + "}"
                     ));
-                    log.info("Incident {} flagged SLA AT_RISK", incident.getCode());
+                    log.info("Incident {} flagged SLA AT_RISK (remaining: {}s, expected: {}s)", incident.getCode(), remainingSeconds, expectedResolutionSeconds);
                 }
             }
         }
 
-        // 2. Escalation Tier Check
-        Optional<SlaPolicy> policyOpt = slaPolicyRepository.findById(incident.getPriority());
-        if (policyOpt.isEmpty()) {
-            return;
-        }
-
-        SlaPolicy policy = policyOpt.get();
+        // 2. Escalation Tier Check: Strictly TWO levels (Level 1 at 25%, Level 2 at 75%)
         long totalSeconds = Duration.between(incident.getCreatedAt(), incident.getSlaDueAt()).getSeconds();
         if (totalSeconds <= 0) {
             return;
@@ -138,10 +165,9 @@ public class SlaEscalationScheduler {
                     incident,
                     "ESCALATED",
                     null,
-                    "{\"level\": 1, \"trigger\": \"AUTO_SLA_25_PERCENT\", \"reason\": \"SLA warning threshold reached (" + Math.round(pctElapsed) + "% elapsed)\"}"
+                    "{\"level\": 1, \"trigger\": \"AUTO_SLA_25_PERCENT\", \"reason\": \"Unacknowledged incident SLA threshold reached (" + Math.round(pctElapsed) + "% elapsed)\"}"
             ));
-            log.info("Incident {} auto-escalated to Level 1 (Lead)", incident.getCode());
+            log.info("Incident {} auto-escalated to Level 1 (Team Lead)", incident.getCode());
         }
     }
 }
-

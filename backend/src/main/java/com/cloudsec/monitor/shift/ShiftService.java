@@ -57,12 +57,16 @@ public class ShiftService {
         }
 
         Duration duration = Duration.between(request.getStartsAt(), request.getEndsAt());
-        if (duration.toHours() > MAX_SHIFT_HOURS) {
+        if (duration.compareTo(Duration.ofHours(MAX_SHIFT_HOURS)) > 0) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "Shift duration cannot exceed 16 hours");
         }
 
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found"));
+
+        if (!user.isActive()) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Cannot schedule shifts for inactive users");
+        }
 
         // Check overlapping shifts for this user
         List<Shift> overlapping = shiftRepository.findOverlappingShifts(
@@ -82,6 +86,9 @@ public class ShiftService {
 
     @Transactional
     public void deleteShift(UUID id) {
+        if (!shiftRepository.existsById(id)) {
+            throw new ApiException(ErrorCode.NOT_FOUND, "Shift not found");
+        }
         shiftRepository.deleteById(id);
     }
 
@@ -93,6 +100,7 @@ public class ShiftService {
                 : shiftRepository.findActiveShiftsOnNow(now);
 
         return shifts.stream()
+                .filter(s -> s.getUser().isActive())
                 .map(ShiftResponse::from)
                 .collect(Collectors.toList());
     }

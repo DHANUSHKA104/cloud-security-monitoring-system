@@ -6,15 +6,15 @@ services:
     container_name: cloudsec-postgres
     restart: always
     environment:
-      POSTGRES_DB: ${DB_NAME:-cloudsec}
-      POSTGRES_USER: ${DB_USER:-cloudsec}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-cloudsec_dev_pass_2026}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-cloudsec} -d ${DB_NAME:-cloudsec}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -29,21 +29,21 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-cloudsec}
-      DB_USER: ${DB_USER:-cloudsec}
-      DB_PASSWORD: ${DB_PASSWORD:-cloudsec_dev_pass_2026}
-      JWT_SECRET: ${JWT_SECRET:-cloudsec-development-very-secure-jwt-secret-key-32chars}
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_MINUTES: ${JWT_ACCESS_MINUTES:-15}
       JWT_REFRESH_DAYS: ${JWT_REFRESH_DAYS:-7}
-      SIM_API_KEY: ${SIM_API_KEY:-cloudsec-sim-key}
-      SIM_ADMIN_EMAIL: ${SIM_ADMIN_EMAIL:-admin@cloudsec.local}
+      SIM_API_KEY: ${SIM_API_KEY}
+      SIM_ADMIN_EMAIL: ${SIM_ADMIN_EMAIL}
       SIM_ADMIN_PASSWORD: ${SIM_ADMIN_PASSWORD}
       DEV_SEED_PASSWORD: ${DEV_SEED_PASSWORD}
       ANALYTICS_URL: http://analytics:8000
-      ANALYTICS_API_KEY: ${ANALYTICS_API_KEY:-cloudsec-analytics-key}
+      ANALYTICS_API_KEY: ${ANALYTICS_API_KEY}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
 
   analytics:
     build:
@@ -54,10 +54,10 @@ services:
     depends_on:
       - backend
     environment:
-      ANALYTICS_DB_URL: postgresql://analytics_ro:${ANALYTICS_DB_PASSWORD:-analytics_ro_pass_2026}@postgres:5432/${DB_NAME:-cloudsec}
-      ANALYTICS_API_KEY: ${ANALYTICS_API_KEY:-cloudsec-analytics-key}
+      ANALYTICS_DB_URL: postgresql://analytics_ro:${ANALYTICS_DB_PASSWORD}@postgres:5432/${DB_NAME}
+      ANALYTICS_API_KEY: ${ANALYTICS_API_KEY}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
 
 volumes:
   pgdata:

@@ -5,4 +5,6 @@ export * from './Profile';
 export * from './Users';
 export * from './Incidents';
 export * from './IncidentDetails';
+export * from './Workflows';
+export * from './Assets';
 export * from './NotFound';

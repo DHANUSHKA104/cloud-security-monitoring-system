@@ -1,26 +1,33 @@
 package com.cloudsec.monitor.incident.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.Size;
 
 public class ReopenRequest {
 
-    @NotBlank(message = "Reason is required to reopen an incident")
-    @Size(min = 5, max = 500, message = "Reason must be between 5 and 500 characters")
-    private String reason;
+    @Size(max = 500, message = "Note must be under 500 characters")
+    @JsonAlias({"reason"})
+    private String note;
 
     public ReopenRequest() {}
 
-    public ReopenRequest(String reason) {
-        this.reason = reason;
+    public ReopenRequest(String note) {
+        this.note = note;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
     }
 
     public String getReason() {
-        return reason;
+        return note;
     }
 
     public void setReason(String reason) {
-        this.reason = reason;
+        this.note = reason;
     }
 }
-

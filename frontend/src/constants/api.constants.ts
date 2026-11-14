@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
     MFA_ENABLE: '/auth/mfa/enable',
     MFA_DISABLE: '/auth/mfa/disable',
     CHANGE_PASSWORD: '/auth/change-password',
+    RESET_PASSWORD: '/auth/reset-password',
   },
   // Users & Teams
   USERS: {
@@ -55,6 +56,21 @@ export const API_ENDPOINTS = {
     AT_RISK: '/dashboard/at-risk',
     FEED: '/dashboard/feed',
     INSIGHTS: '/dashboard/insights',
+  },
+  // Assets
+  ASSETS: {
+    BASE: '/assets',
+    BY_ID: (id: string) => `/assets/${id}`,
+    BY_CODE: (code: string) => `/assets/code/${code}`,
+    STATS: '/assets/stats',
+  },
+  // Playbooks
+  PLAYBOOKS: {
+    BASE: '/playbooks',
+    BY_ID: (id: string) => `/playbooks/${id}`,
+    BY_CATEGORY: (category: string) => `/playbooks/category/${category}`,
+    INCIDENT_PLAYBOOK: (incidentId: string) => `/incidents/${incidentId}/playbook`,
+    EXECUTE_STEP: (incidentId: string, stepId: string) => `/incidents/${incidentId}/playbook/steps/${stepId}/execute`,
   },
   // Simulation & Demo
   SIM: {

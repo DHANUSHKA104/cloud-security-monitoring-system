@@ -1,6 +1,5 @@
 package com.cloudsec.monitor.security;
 
-import com.cloudsec.monitor.user.Role;
 import com.cloudsec.monitor.user.User;
 import com.cloudsec.monitor.user.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -45,13 +44,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
                 if (userOpt.isPresent()) {
                     User user = userOpt.get();
-                    if (user.isActive()) {
-                        UserPrincipal principal = UserPrincipal.create(user);
-                        UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
-                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    if (!user.isActive()) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"code\":\"UNAUTHENTICATED\",\"message\":\"This account has been deactivated\"}");
+                        return;
                     }
+                    UserPrincipal principal = UserPrincipal.create(user);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
         }

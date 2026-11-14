@@ -56,7 +56,7 @@ class DashboardServiceTest {
                 incidentEventRepository,
                 userRepository,
                 shiftRepository,
-                "http://localhost:8000"
+                "http://127.0.0.1:59999"
         );
     }
 
@@ -101,7 +101,7 @@ class DashboardServiceTest {
         resolved2.setResolvedAt(now.minus(Duration.ofMinutes(20))); // 80m MTTR
         resolved2.setSlaDueAt(now.minus(Duration.ofMinutes(50))); // Late (Breached)
 
-        when(incidentRepository.findByStatusIn(anyCollection())).thenReturn(List.of(resolved1, resolved2));
+        when(incidentRepository.findResolvedSince(any(Instant.class))).thenReturn(List.of(resolved1, resolved2));
 
         // When
         DashboardSummaryResponse summary = dashboardService.getSummary();
@@ -192,13 +192,11 @@ class DashboardServiceTest {
     @DisplayName("Dashboard insights generates statistical fallback metrics safely")
     void testInsightsFallback() {
         when(incidentRepository.findByCreatedAtAfter(any(Instant.class))).thenReturn(Collections.emptyList());
-        when(shiftRepository.findShiftsBetween(any(Instant.class), any(Instant.class))).thenReturn(Collections.emptyList());
-        when(incidentRepository.findByStatusIn(anyCollection())).thenReturn(Collections.emptyList());
 
         DashboardInsightsResponse insights = dashboardService.getInsights();
 
         assertNotNull(insights);
-        assertTrue(insights.isAvailable());
+        assertFalse(insights.isAvailable()); // Spec requirement: return available=false when analytics service is down
         assertNotNull(insights.getVolumeAnomalies());
         assertNotNull(insights.getCoverageGaps());
         assertNotNull(insights.getResolutionStats());

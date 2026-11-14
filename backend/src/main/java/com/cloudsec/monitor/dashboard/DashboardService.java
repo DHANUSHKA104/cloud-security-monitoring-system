@@ -1,5 +1,9 @@
 package com.cloudsec.monitor.dashboard;
 
+import com.cloudsec.monitor.asset.AssetRepository;
+import com.cloudsec.monitor.asset.Criticality;
+import com.cloudsec.monitor.playbook.PlaybookRepository;
+import com.cloudsec.monitor.playbook.IncidentPlaybookExecutionRepository;
 import com.cloudsec.monitor.dashboard.dto.AnalystWorkloadResponse;
 import com.cloudsec.monitor.dashboard.dto.DashboardEventFeedResponse;
 import com.cloudsec.monitor.dashboard.dto.DashboardInsightsResponse;
@@ -49,6 +53,15 @@ public class DashboardService {
     private final ShiftRepository shiftRepository;
     private final RestClient restClient;
 
+    @Autowired(required = false)
+    private AssetRepository assetRepository;
+
+    @Autowired(required = false)
+    private PlaybookRepository playbookRepository;
+
+    @Autowired(required = false)
+    private IncidentPlaybookExecutionRepository executionRepository;
+
     public DashboardService(
             IncidentRepository incidentRepository,
             IncidentEventRepository incidentEventRepository,
@@ -65,8 +78,8 @@ public class DashboardService {
             IncidentEventRepository incidentEventRepository,
             UserRepository userRepository,
             ShiftRepository shiftRepository,
-            @Value("${cloudsec.analytics.url:http://localhost:8000}") String analyticsUrl,
-            @Value("${cloudsec.analytics.api-key:cloudsec-analytics-key}") String analyticsApiKey
+            @Value("${app.analytics.url}") String analyticsUrl,
+            @Value("${app.analytics.api-key}") String analyticsApiKey
     ) {
         this.incidentRepository = incidentRepository;
         this.incidentEventRepository = incidentEventRepository;
@@ -113,7 +126,8 @@ public class DashboardService {
         }
 
         // Calculate SLA compliance and MTTR from resolved/closed incidents
-        List<Incident> closedList = incidentRepository.findByStatusIn(CLOSED_STATUSES);
+        Instant cutoff30d = Instant.now().minus(30, ChronoUnit.DAYS);
+        List<Incident> closedList = incidentRepository.findResolvedSince(cutoff30d);
         double slaCompliancePct = 100.0;
         double mttrMinutes = 0.0;
 
@@ -149,7 +163,7 @@ public class DashboardService {
             }
         }
 
-        return new DashboardSummaryResponse(
+        DashboardSummaryResponse resp = new DashboardSummaryResponse(
                 openIncidents,
                 p1Open,
                 threatScore,
@@ -159,6 +173,17 @@ public class DashboardService {
                 atRiskCount,
                 breachedCount
         );
+        if (assetRepository != null) {
+            resp.setTotalAssets(assetRepository.countByActiveTrue());
+            resp.setCriticalAssets(assetRepository.countByCriticalityAndActiveTrue(Criticality.CRITICAL));
+        }
+        if (playbookRepository != null) {
+            resp.setTotalPlaybooks(playbookRepository.count());
+        }
+        if (executionRepository != null) {
+            resp.setExecutedPlaybookSteps(executionRepository.countByStatus("COMPLETED"));
+        }
+        return resp;
     }
 
     public DashboardTrendsResponse getTrends() {
@@ -381,7 +406,7 @@ public class DashboardService {
         }
 
         return new DashboardInsightsResponse(
-                true,
+                false, // available = false when analytics microservice is down
                 volumeAnomalies,
                 coverageGaps,
                 resolutionStats

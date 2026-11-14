@@ -1,8 +1,14 @@
 package com.cloudsec.monitor.shift;
 
+import com.cloudsec.monitor.common.exception.ApiException;
+import com.cloudsec.monitor.common.exception.ErrorCode;
+import com.cloudsec.monitor.security.UserPrincipal;
 import com.cloudsec.monitor.shift.dto.HandoverResponse;
+import com.cloudsec.monitor.shift.dto.ShiftHandoverRequest;
+import com.cloudsec.monitor.shift.dto.ShiftHandoverResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -15,9 +21,11 @@ import java.util.UUID;
 public class HandoverService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final ShiftRepository shiftRepository;
 
-    public HandoverService(JdbcTemplate jdbcTemplate) {
+    public HandoverService(JdbcTemplate jdbcTemplate, ShiftRepository shiftRepository) {
         this.jdbcTemplate = jdbcTemplate;
+        this.shiftRepository = shiftRepository;
     }
 
     public HandoverResponse generateHandover(UUID teamId) {
@@ -102,20 +110,83 @@ public class HandoverService {
         );
         response.setUrgentIncidents(urgentList);
 
-        // Templated summary string
-        String templated = String.format(
-                "Shift Handover Brief: %d open incidents (%d P1, %d P2, %d P3, %d P4). " +
-                        "%d incident(s) at immediate risk of SLA breach. %d resolved in the past 8 hours.",
-                response.getOpenCount(),
-                response.getP1Count(),
-                response.getP2Count(),
-                response.getP3Count(),
-                response.getP4Count(),
-                response.getAtRiskCount(),
-                response.getResolvedLast8Hours()
-        );
-        response.setTemplatedText(templated);
+        // Calculate no coverage count (active shifts count right now)
+        String sqlCoverage = "SELECT COUNT(*) FROM shifts s " +
+                "JOIN users u ON s.user_id = u.id " +
+                "WHERE u.active = true AND s.starts_at <= ? AND s.ends_at >= ?";
+        Timestamp nowTs = Timestamp.from(now);
+        Integer activeOps = jdbcTemplate.queryForObject(sqlCoverage, Integer.class, nowTs, nowTs);
+        response.setNoCoverageCount((activeOps != null && activeOps > 0) ? 0 : openTotal);
 
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public ShiftHandoverResponse processShiftHandover(UUID shiftId, UserPrincipal currentUser, ShiftHandoverRequest request) {
+        Shift shift = shiftRepository.findById(shiftId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Shift not found: " + shiftId));
+
+        boolean isAdmin = currentUser != null && currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isOwner = currentUser != null && currentUser.getId().equals(shift.getUser().getId());
+
+        if (!isAdmin && !isOwner) {
+            throw new ApiException(ErrorCode.FORBIDDEN, "Only the assigned operator or an administrator may execute handover for this shift");
+        }
+
+        UUID analystId = shift.getUser().getId();
+        Instant now = Instant.now();
+        Instant eightHoursAgo = now.minus(Duration.ofHours(8));
+
+        // Always calculate pending incidents on the backend - never trust client counts!
+        String sqlCounts = "SELECT i.priority, COUNT(*) AS cnt " +
+                "FROM incidents i " +
+                "WHERE i.status NOT IN ('RESOLVED', 'CLOSED') AND i.assignee_id = ? " +
+                "GROUP BY i.priority";
+
+        final int[] pCounts = new int[5]; // index 1..4
+        jdbcTemplate.query(sqlCounts, rs -> {
+            String p = rs.getString("priority");
+            int c = rs.getInt("cnt");
+            if ("P1".equalsIgnoreCase(p)) pCounts[1] = c;
+            else if ("P2".equalsIgnoreCase(p)) pCounts[2] = c;
+            else if ("P3".equalsIgnoreCase(p)) pCounts[3] = c;
+            else if ("P4".equalsIgnoreCase(p)) pCounts[4] = c;
+        }, analystId);
+
+        int pendingTotal = pCounts[1] + pCounts[2] + pCounts[3] + pCounts[4];
+
+        // Resolved in last 8 hours by this analyst
+        String sqlResolved = "SELECT COUNT(*) FROM incidents i " +
+                "WHERE i.status = 'RESOLVED' AND i.assignee_id = ? AND i.resolved_at >= ?";
+        Integer resolved = jdbcTemplate.queryForObject(sqlResolved, Integer.class, analystId, Timestamp.from(eightHoursAgo));
+        int resolvedCount = resolved != null ? resolved : 0;
+
+        // At risk
+        Instant thirtyMins = now.plus(Duration.ofMinutes(30));
+        String sqlAtRisk = "SELECT COUNT(*) FROM incidents i " +
+                "WHERE i.status NOT IN ('RESOLVED', 'CLOSED') AND i.assignee_id = ? AND i.sla_due_at <= ?";
+        Integer atRisk = jdbcTemplate.queryForObject(sqlAtRisk, Integer.class, analystId, Timestamp.from(thirtyMins));
+        int atRiskCount = atRisk != null ? atRisk : 0;
+
+        String notes = request != null && request.getNotes() != null ? request.getNotes() : "";
+        String summary = String.format("Handover executed by %s. Pending: %d (P1:%d, P2:%d, P3:%d, P4:%d). SLA At Risk: %d. Resolved (last 8h): %d.",
+                shift.getUser().getFullName(), pendingTotal, pCounts[1], pCounts[2], pCounts[3], pCounts[4], atRiskCount, resolvedCount);
+
+        return new ShiftHandoverResponse(
+                shift.getId(),
+                analystId,
+                shift.getUser().getFullName(),
+                now,
+                notes,
+                pendingTotal,
+                pCounts[1],
+                pCounts[2],
+                pCounts[3],
+                pCounts[4],
+                atRiskCount,
+                resolvedCount,
+                summary
+        );
     }
 }

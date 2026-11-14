@@ -104,6 +104,8 @@ export interface Incident {
     fullName: string;
   } | null;
   assignmentExplanation?: AssignmentExplanation;
+  assetId?: string;
+  riskScore?: number;
 }
 
 export interface IncidentEvent {
@@ -132,6 +134,10 @@ export interface DashboardSummary {
   mttrMinutes: number;
   atRiskCount: number;
   breachedCount: number;
+  totalAssets?: number;
+  criticalAssets?: number;
+  totalPlaybooks?: number;
+  executedPlaybookSteps?: number;
 }
 
 export interface TrendDataPoint {

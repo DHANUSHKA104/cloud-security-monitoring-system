@@ -1,5 +1,6 @@
 package com.cloudsec.monitor.incident.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.Size;
 
 import java.util.UUID;
@@ -8,14 +9,15 @@ public class EscalateRequest {
 
     private UUID toUserId;
 
-    @Size(max = 500, message = "Reason cannot exceed 500 characters")
-    private String reason;
+    @Size(max = 500, message = "Note cannot exceed 500 characters")
+    @JsonAlias({"reason"})
+    private String note;
 
     public EscalateRequest() {}
 
-    public EscalateRequest(UUID toUserId, String reason) {
+    public EscalateRequest(UUID toUserId, String note) {
         this.toUserId = toUserId;
-        this.reason = reason;
+        this.note = note;
     }
 
     public UUID getToUserId() {
@@ -26,11 +28,19 @@ public class EscalateRequest {
         this.toUserId = toUserId;
     }
 
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+
     public String getReason() {
-        return reason;
+        return note;
     }
 
     public void setReason(String reason) {
-        this.reason = reason;
+        this.note = reason;
     }
 }

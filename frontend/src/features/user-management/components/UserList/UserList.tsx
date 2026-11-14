@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Modal } from '@/components/ui/Modal';
 import { apiClient } from '@/services/api/apiClient';
 import { useAppStore } from '@/store/useAppStore';
 import { SkillEditor } from '../SkillEditor';
-import { User, Role } from '@/types';
+import { UserDetails } from '../UserDetails';
+import { UserForm } from '../UserForm';
+import { User } from '@/types';
 
 interface PageResponse<T> {
   content: T[];
@@ -28,19 +29,10 @@ export const UserList: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
 
-  // Create User Modal
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({
-    fullName: '',
-    email: '',
-    password: '',
-    department: 'SOC',
-    role: 'ANALYST' as Role,
-  });
-  const [createLoading, setCreateLoading] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  // Skill Editor Modal
+  // Modals
+  const [userFormOpen, setUserFormOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  const [selectedUserIdForDetails, setSelectedUserIdForDetails] = useState<string | null>(null);
   const [selectedUserForSkills, setSelectedUserForSkills] = useState<{ id: string; name: string } | null>(null);
 
   const { addToast } = useAppStore();
@@ -91,58 +83,33 @@ export const UserList: React.FC = () => {
     }
   };
 
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreateError(null);
-
-    if (createForm.password.length < 10) {
-      setCreateError('Password must be at least 10 characters');
-      return;
-    }
-    if (createForm.password === createForm.email) {
-      setCreateError('Password cannot match the email address');
-      return;
-    }
-
-    try {
-      setCreateLoading(true);
-      await apiClient.post('/api/users', createForm);
-      addToast({
-        type: 'success',
-        message: `Account created for ${createForm.fullName}`,
-      });
-      setCreateModalOpen(false);
-      setCreateForm({
-        fullName: '',
-        email: '',
-        password: '',
-        department: 'SOC',
-        role: 'ANALYST',
-      });
-      fetchUsers();
-    } catch (err: unknown) {
-      const apiErr = err as { message?: string };
-      setCreateError(apiErr.message || 'Failed to create user');
-    } finally {
-      setCreateLoading(false);
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'ADMIN':
+        return 'bg-purple-900/30 text-purple-400 border-purple-800';
+      case 'ANALYST':
+        return 'bg-blue-900/30 text-blue-400 border-blue-800';
+      case 'VIEWER':
+      default:
+        return 'bg-gray-800 text-gray-400 border-gray-700';
     }
   };
 
   return (
     <div className="space-y-4">
-      {/* Controls Bar */}
+      {/* Search and Filters Header */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-gray-900/60 p-3 rounded-lg border border-gray-800">
         <div className="flex flex-wrap items-center gap-2 flex-1">
-          <input
-            type="text"
-            placeholder="Search by name or email..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(0);
-            }}
-            className="w-full sm:w-64 bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
-          />
+          <div className="w-64">
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(0);
+              }}
+              placeholder="Search by name or email..."
+            />
+          </div>
 
           <select
             value={roleFilter}
@@ -150,12 +117,12 @@ export const UserList: React.FC = () => {
               setRoleFilter(e.target.value);
               setPage(0);
             }}
-            className="bg-gray-950 border border-gray-800 rounded px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+            className="bg-gray-950 border border-gray-800 rounded px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Roles</option>
-            <option value="ADMIN">ADMIN</option>
-            <option value="ANALYST">ANALYST</option>
-            <option value="VIEWER">VIEWER</option>
+            <option value="ADMIN">Administrators</option>
+            <option value="ANALYST">Security Analysts</option>
+            <option value="VIEWER">Viewers</option>
           </select>
 
           <select
@@ -164,66 +131,68 @@ export const UserList: React.FC = () => {
               setActiveFilter(e.target.value);
               setPage(0);
             }}
-            className="bg-gray-950 border border-gray-800 rounded px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+            className="bg-gray-950 border border-gray-800 rounded px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Status</option>
             <option value="ACTIVE">Active Only</option>
-            <option value="INACTIVE">Deactivated Only</option>
+            <option value="INACTIVE">Deactivated</option>
           </select>
         </div>
 
-        <Button onClick={() => setCreateModalOpen(true)} size="sm">
-          + Add User
+        <Button
+          onClick={() => {
+            setUserToEdit(null);
+            setUserFormOpen(true);
+          }}
+          size="sm"
+        >
+          + Register Operator
         </Button>
       </div>
 
-      {/* Main Table */}
-      <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
-        {error && (
-          <div className="p-4 bg-red-950/60 border-b border-red-800 text-red-300 text-xs">
-            {error}
-          </div>
-        )}
-
+      {/* Directory Table */}
+      <div className="bg-gray-900/60 border border-gray-800 rounded-lg overflow-hidden">
         {loading ? (
-          <div className="py-16 text-center text-xs text-gray-400">Loading user records...</div>
+          <div className="py-16 text-center text-sm text-gray-400">Loading operators...</div>
+        ) : error ? (
+          <div className="p-4 text-xs text-rose-400 bg-rose-950/20">{error}</div>
         ) : users.length === 0 ? (
-          <div className="py-16 text-center text-xs text-gray-500">
-            No users match the current filter criteria.
-          </div>
+          <div className="py-16 text-center text-sm text-gray-400">No operators found matching criteria.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-gray-800 bg-gray-950/50 text-gray-400">
-                  <th className="py-3 px-4 font-medium">User Details</th>
-                  <th className="py-3 px-4 font-medium">Department</th>
-                  <th className="py-3 px-4 font-medium">Role</th>
-                  <th className="py-3 px-4 font-medium">MFA</th>
-                  <th className="py-3 px-4 font-medium">Status</th>
-                  <th className="py-3 px-4 font-medium text-right">Actions</th>
+                <tr className="border-b border-gray-800 bg-gray-950/80 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                  <th className="py-3 px-4">Operator</th>
+                  <th className="py-3 px-4">Role</th>
+                  <th className="py-3 px-4">Department</th>
+                  <th className="py-3 px-4">MFA</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800/60 text-gray-300">
+              <tbody className="divide-y divide-gray-800/60 text-xs">
                 {users.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-800/30 transition-colors">
                     <td className="py-3 px-4">
-                      <div className="font-medium text-gray-100">{user.fullName}</div>
-                      <div className="text-[11px] text-gray-400 font-mono">{user.email}</div>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedUserIdForDetails(user.id)}
+                          className="font-medium text-gray-100 hover:text-blue-400 text-left transition-colors"
+                        >
+                          {user.fullName}
+                        </button>
+                        <p className="text-[11px] text-gray-400 font-mono">{user.email}</p>
+                      </div>
                     </td>
-                    <td className="py-3 px-4 text-gray-400">{user.department || '—'}</td>
                     <td className="py-3 px-4">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded font-mono text-[10px] uppercase border ${
-                          user.role === 'ADMIN'
-                            ? 'bg-purple-950/60 text-purple-300 border-purple-800'
-                            : user.role === 'ANALYST'
-                            ? 'bg-blue-950/60 text-blue-300 border-blue-800'
-                            : 'bg-gray-800 text-gray-300 border-gray-700'
-                        }`}
-                      >
+                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${getRoleBadge(user.role)}`}>
                         {user.role}
                       </span>
+                    </td>
+                    <td className="py-3 px-4 text-gray-300">
+                      {user.department || 'SOC Operations'}
                     </td>
                     <td className="py-3 px-4">
                       <span
@@ -251,7 +220,24 @@ export const UserList: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedUserIdForDetails(user.id)}
+                          className="px-2 py-1 text-[11px] rounded bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 transition-colors"
+                        >
+                          Profile
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserToEdit(user);
+                            setUserFormOpen(true);
+                          }}
+                          className="px-2 py-1 text-[11px] rounded bg-gray-800 hover:bg-gray-700 text-blue-400 border border-gray-700 transition-colors"
+                        >
+                          Edit
+                        </button>
                         {user.role === 'ANALYST' && (
                           <button
                             type="button"
@@ -312,111 +298,39 @@ export const UserList: React.FC = () => {
         </div>
       </div>
 
-      {/* Create User Modal */}
-      <Modal
-        open={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        title="Register Team Member"
-      >
-        <div className="text-xs text-gray-400 mb-3">
-          Add a new security operator, administrator or observer to the platform.
-        </div>
-        <form onSubmit={handleCreateUser} className="space-y-3">
-          {createError && (
-            <div className="p-3 bg-red-950/60 border border-red-800 text-red-300 text-xs rounded-md">
-              {createError}
-            </div>
-          )}
+      {/* Operator Details Modal */}
+      <UserDetails
+        userId={selectedUserIdForDetails}
+        isOpen={!!selectedUserIdForDetails}
+        onClose={() => setSelectedUserIdForDetails(null)}
+        onEditSkills={(uId, uName) => {
+          setSelectedUserIdForDetails(null);
+          setSelectedUserForSkills({ id: uId, name: uName });
+        }}
+        onUserUpdated={fetchUsers}
+      />
 
-          <Input
-            id="create-fullname"
-            label="Full Name"
-            placeholder="Dhanushka K S"
-            value={createForm.fullName}
-            onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
-            required
-          />
-
-          <Input
-            id="create-email"
-            label="Email Address"
-            type="email"
-            placeholder="operator@cloudsec.local"
-            value={createForm.email}
-            onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-            required
-          />
-
-          <Input
-            id="create-password"
-            label="Temporary Password"
-            type="password"
-            placeholder="Minimum 10 characters"
-            value={createForm.password}
-            onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-            required
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="create-dept" className="block text-xs font-medium text-gray-300 mb-1">
-                Department
-              </label>
-              <input
-                id="create-dept"
-                type="text"
-                value={createForm.department}
-                onChange={(e) => setCreateForm({ ...createForm, department: e.target.value })}
-                className="w-full bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="create-role" className="block text-xs font-medium text-gray-300 mb-1">
-                Assigned Role
-              </label>
-              <select
-                id="create-role"
-                value={createForm.role}
-                onChange={(e) =>
-                  setCreateForm({ ...createForm, role: e.target.value as Role })
-                }
-                className="w-full bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              >
-                <option value="ADMIN">ADMIN</option>
-                <option value="ANALYST">ANALYST</option>
-                <option value="VIEWER">VIEWER</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-gray-800">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setCreateModalOpen(false)}
-              disabled={createLoading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" loading={createLoading}>
-              Create Account
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Operator Create / Edit Form Modal */}
+      <UserForm
+        isOpen={userFormOpen}
+        onClose={() => {
+          setUserFormOpen(false);
+          setUserToEdit(null);
+        }}
+        onSuccess={fetchUsers}
+        userToEdit={userToEdit}
+      />
 
       {/* Skill Editor Modal */}
-      {selectedUserForSkills && (
-        <SkillEditor
-          isOpen={!!selectedUserForSkills}
-          userId={selectedUserForSkills.id}
-          userName={selectedUserForSkills.name}
-          onClose={() => setSelectedUserForSkills(null)}
-          onSaved={() => fetchUsers()}
-        />
-      )}
+      <SkillEditor
+        userId={selectedUserForSkills?.id || null}
+        userName={selectedUserForSkills?.name || ''}
+        isOpen={!!selectedUserForSkills}
+        onClose={() => setSelectedUserForSkills(null)}
+        onSaved={fetchUsers}
+      />
     </div>
   );
 };
+
 export default UserList;

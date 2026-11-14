@@ -1,14 +1,12 @@
 package com.cloudsec.monitor.auth.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public class LoginRequest {
 
-    @NotBlank(message = "Enter a valid email address")
-    @Email(message = "Enter a valid email address")
-    @Size(max = 254, message = "Enter a valid email address")
+    @NotBlank(message = "Enter your name or email address")
+    @Size(max = 254, message = "Identifier too long")
     private String email;
 
     @NotBlank(message = "Password is required")
@@ -26,7 +24,7 @@ public class LoginRequest {
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        this.email = email != null ? email.trim() : null;
     }
 
     public String getPassword() {

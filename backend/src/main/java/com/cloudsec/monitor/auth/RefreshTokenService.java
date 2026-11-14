@@ -100,6 +100,13 @@ public class RefreshTokenService {
         }
     }
 
+    @Transactional
+    public void revokeAllUserTokens(UUID userId) {
+        if (userId != null) {
+            refreshTokenRepository.revokeAllUserTokens(userId);
+        }
+    }
+
     public ResponseCookie createRefreshCookie(String refreshToken) {
         boolean isProd = "prod".equalsIgnoreCase(activeProfile);
         return ResponseCookie.from("refresh_token", refreshToken)
@@ -134,4 +141,3 @@ public class RefreshTokenService {
 
     public record RefreshTokenResult(User user, String newRawToken) {}
 }
-

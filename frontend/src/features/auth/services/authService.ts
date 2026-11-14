@@ -40,4 +40,7 @@ export const authService = {
 
   changePassword: (data: ChangePasswordRequest) =>
     apiClient.post<void>(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, data),
+
+  resetPassword: (data: { email: string; newPassword: string }) =>
+    apiClient.post<void>(API_ENDPOINTS.AUTH.RESET_PASSWORD, data),
 };

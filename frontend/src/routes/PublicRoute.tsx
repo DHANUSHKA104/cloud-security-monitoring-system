@@ -1,14 +1,12 @@
 import React, { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { ROUTES } from '@/constants/routes.constants';
 
 interface PublicRouteProps {
   children: ReactNode;
 }
 
 export const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -18,9 +16,7 @@ export const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
     );
   }
 
-  if (isAuthenticated) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />;
-  }
-
+  // Always allow viewing Login and SignUp pages even if authenticated
   return <>{children}</>;
 };
+export default PublicRoute;
