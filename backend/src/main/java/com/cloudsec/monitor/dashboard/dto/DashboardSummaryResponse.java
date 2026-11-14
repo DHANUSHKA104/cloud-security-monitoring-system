@@ -1,3 +1,4 @@
+
 package com.cloudsec.monitor.dashboard.dto;
 
 public class DashboardSummaryResponse {
@@ -8,6 +9,7 @@ public class DashboardSummaryResponse {
     private String threatLevel;
     private double slaCompliancePct;
     private double mttrMinutes;
+    private double mttaMinutes;
     private long atRiskCount;
     private long breachedCount;
 
@@ -26,6 +28,7 @@ public class DashboardSummaryResponse {
             String threatLevel,
             double slaCompliancePct,
             double mttrMinutes,
+            double mttaMinutes,
             long atRiskCount,
             long breachedCount
     ) {
@@ -35,6 +38,7 @@ public class DashboardSummaryResponse {
         this.threatLevel = threatLevel;
         this.slaCompliancePct = slaCompliancePct;
         this.mttrMinutes = mttrMinutes;
+        this.mttaMinutes = mttaMinutes;
         this.atRiskCount = atRiskCount;
         this.breachedCount = breachedCount;
     }
@@ -85,6 +89,14 @@ public class DashboardSummaryResponse {
 
     public void setMttrMinutes(double mttrMinutes) {
         this.mttrMinutes = mttrMinutes;
+    }
+
+    public double getMttaMinutes() {
+        return mttaMinutes;
+    }
+
+    public void setMttaMinutes(double mttaMinutes) {
+        this.mttaMinutes = mttaMinutes;
     }
 
     public long getAtRiskCount() {

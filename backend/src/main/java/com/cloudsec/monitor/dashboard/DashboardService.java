@@ -130,6 +130,34 @@ public class DashboardService {
         List<Incident> closedList = incidentRepository.findResolvedSince(cutoff30d);
         double slaCompliancePct = 100.0;
         double mttrMinutes = 0.0;
+        // Calculate MTTA from incidents created in the last 30 days
+double mttaMinutes = 0.0;
+
+List<Incident> recentIncidents =
+        incidentRepository.findByCreatedAtAfter(cutoff30d);
+
+long totalAcknowledgementMinutes = 0;
+long acknowledgedCount = 0;
+
+for (Incident inc : recentIncidents) {
+    if (inc.getCreatedAt() != null && inc.getAcknowledgedAt() != null) {
+        long minutes = Duration.between(
+                inc.getCreatedAt(),
+                inc.getAcknowledgedAt()
+        ).toMinutes();
+
+        if (minutes >= 0) {
+            totalAcknowledgementMinutes += minutes;
+            acknowledgedCount++;
+        }
+    }
+}
+
+if (acknowledgedCount > 0) {
+    mttaMinutes = Math.round(
+            ((double) totalAcknowledgementMinutes / acknowledgedCount) * 10.0
+    ) / 10.0;
+}
 
         if (!closedList.isEmpty()) {
             long inSla = closedList.stream()
@@ -164,15 +192,16 @@ public class DashboardService {
         }
 
         DashboardSummaryResponse resp = new DashboardSummaryResponse(
-                openIncidents,
-                p1Open,
-                threatScore,
-                threatLevel,
-                slaCompliancePct,
-                mttrMinutes,
-                atRiskCount,
-                breachedCount
-        );
+        openIncidents,
+        p1Open,
+        threatScore,
+        threatLevel,
+        slaCompliancePct,
+        mttrMinutes,
+        mttaMinutes,
+        atRiskCount,
+        breachedCount
+);
         if (assetRepository != null) {
             resp.setTotalAssets(assetRepository.countByActiveTrue());
             resp.setCriticalAssets(assetRepository.countByCriticalityAndActiveTrue(Criticality.CRITICAL));
